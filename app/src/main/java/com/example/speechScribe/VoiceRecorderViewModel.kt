@@ -28,10 +28,16 @@ class VoiceRecorderViewModel : ViewModel() {
 
     fun startRecording(context: Context) {
         recorder = MediaRecorder(context).apply {
-            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
             setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-            setOutputFile(fileName)
             setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+
+            // Set high quality audio sampling rate and bit rate
+            setAudioEncodingBitRate(128000)
+            setAudioSamplingRate(44100)
+
+            setOutputFile(fileName)
+
 
             try {
                 prepare()
