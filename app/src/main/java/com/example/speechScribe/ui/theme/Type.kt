@@ -1,4 +1,4 @@
-package com.example.recordingapp.ui.theme
+package com.example.speechScribe.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

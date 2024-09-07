@@ -1,4 +1,4 @@
-package com.example.recordingapp
+package com.example.speechScribe
 
 import org.junit.Test
 

@@ -1,4 +1,4 @@
-package com.example.recordingapp
+package com.example.speechScribe
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.recordingapp"
+    namespace = "com.example.speechScribe"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.recordingapp"
+        applicationId = "com.example.speechScribe"
         minSdk = 31
         targetSdk = 34
         versionCode = 1
