@@ -8,7 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import com.example.speechScribe.ui.theme.RecordingAppTheme
+import com.example.speechScribe.ui.theme.SpeechScribeTheme
 
 class MainActivity : ComponentActivity() {
     private var permissionToRecordAccepted = false
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         checkAndRequestPermission()
 
         setContent {
-            RecordingAppTheme {
+            SpeechScribeTheme {
                 VoiceRecorderScreen(
                     viewModel = VoiceRecorderViewModel()
                 )

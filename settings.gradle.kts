@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RecordingApp"
+rootProject.name = "SpeechScribe"
 include(":app")
