@@ -41,7 +41,7 @@ To use SpeechScribe, follow these steps:
 5. The app will process the audio and transcribe it to text using Whisper AI
 6. Review, edit, or share your transcribed text as needed
 
- have any questions, suggestions, or just want to say hello, you can reach me at `<your_email@example.com>`.
+ have any questions, suggestions, or just want to say hello, you can reach me at `<nicoescobar69@gmail.com>`.
 
 ## License
 
