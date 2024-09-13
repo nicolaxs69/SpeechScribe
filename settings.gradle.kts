@@ -22,4 +22,3 @@ dependencyResolutionManagement {
 rootProject.name = "SpeechScribe"
 include(":app")
 include(":opus")
-include(":opus")
