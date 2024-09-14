@@ -1,4 +1,4 @@
-package com.example.opusEncoding
+package com.example.speechScribe.opusEncoding
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -22,12 +23,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.opus.Constants
 
+private val TAG = "OpuseEncoderScreen"
 private lateinit var SAMPLE_RATE: Constants.SampleRate
 
 @Composable
-fun OpusEncoderScreen() {
+fun OpusEncoderScreen(
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> Unit,
+) {
 
-    val isRecording = false
+    var isRecording by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize(),
@@ -35,11 +41,18 @@ fun OpusEncoderScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         SampleRateSlider()
-//        Spacer(modifier = Modifier.padding(12.dp))
         Button(
             modifier = Modifier
                 .padding(horizontal = 8.dp),
-            onClick = {}
+            enabled = !isRecording,
+            onClick = {
+                isRecording = !isRecording
+                if (isRecording) {
+                    onStartRecording()
+                } else {
+                    onStopRecording()
+                }
+            },
         ) {
             if (isRecording) Text("Stop recording") else Text("Start recording")
         }
@@ -68,16 +81,15 @@ fun SampleRateSlider() {
                 activeTrackColor = MaterialTheme.colorScheme.secondary,
                 inactiveTrackColor = MaterialTheme.colorScheme.secondaryContainer
             ),
-            valueRange = 0f..50f,
-            steps = 4,
+            valueRange = 0f..4f,
+            steps = 3,
         )
         Text(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally),
-            text = "Sample rate: ${slidePosition.toInt()}",
+            text = "Sample rate: ${getSamplingPosition(slidePosition.toInt())} Hz",
         )
     }
-
 }
 
 @Composable
@@ -120,26 +132,35 @@ fun StereoChannelButton() {
     }
 }
 
-private fun getSampleRate(v: Int): Constants.SampleRate {
-    return try {
-        when (v) {
-            0 -> Constants.SampleRate._8000()
-            1 -> Constants.SampleRate._12000()
-            2 -> Constants.SampleRate._16000()
-            3 -> Constants.SampleRate._24000()
-            4 -> Constants.SampleRate._48000()
-            else -> throw IllegalArgumentException("Invalid sample rate value: $v")
-        }
-    } catch (e: IllegalArgumentException) {
-        e.printStackTrace()
-        println("Invalid sample rate value provided. Defaulting to 16K.")
-        Constants.SampleRate._16000() // Default to 8000 if an invalid value is provided
+private fun getSamplingPosition(position: Int): String {
+    return when (position) {
+        0 -> SamplingRate.RATE_8K.value
+        1 -> SamplingRate.RATE_12K.value
+        2 -> SamplingRate.RATE_16K.value
+        3 -> SamplingRate.RATE_24K.value
+        4 -> SamplingRate.RATE_48K.value
+        else -> SamplingRate.RATE_8K.value
     }
 }
 
+private fun getSampleRate(v: Int): Constants.SampleRate {
+    return when (v) {
+        0 -> Constants.SampleRate._8000()
+        1 -> Constants.SampleRate._12000()
+        2 -> Constants.SampleRate._16000()
+        3 -> Constants.SampleRate._24000()
+        4 -> Constants.SampleRate._48000()
+        else -> {
+            Constants.SampleRate._8000()
+        }
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
 fun OpusEncoderScreenPreview() {
-    OpusEncoderScreen()
+    OpusEncoderScreen(
+        onStartRecording = {},
+        onStopRecording = {},
+    )
 }

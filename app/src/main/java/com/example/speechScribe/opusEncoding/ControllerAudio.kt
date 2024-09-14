@@ -1,4 +1,4 @@
-package com.example.opusEncoding
+package com.example.speechScribe.opusEncoding
 
 import android.content.Context
 import android.content.pm.PackageManager
@@ -59,8 +59,8 @@ object ControllerAudio {
                 .setBufferSizeInBytes(bufferSize)
                 .build()
 
-            this.frameSize = frameSize
-            this.audioFile = audioFile
+            ControllerAudio.frameSize = frameSize
+            audioFile = audioFile
 
             if (NoiseSuppressor.isAvailable()) {
                 try {
@@ -86,25 +86,25 @@ object ControllerAudio {
     }
 
     fun startRecord() {
-        if (::recorder.isInitialized && recorder.state == AudioRecord.STATE_INITIALIZED) {
+        if (ControllerAudio::recorder.isInitialized && recorder.state == AudioRecord.STATE_INITIALIZED) {
             recorder.startRecording()
             micEnabled = true
         }
     }
 
     fun getFrame(): ByteArray? {
-        if (!::recorder.isInitialized || !micEnabled) return null
+        if (!ControllerAudio::recorder.isInitialized || !micEnabled) return null
         val frame = ByteArray(frameSize)
         val read = recorder.read(frame, 0, frameSize)
         return if (read == frameSize) frame else null
     }
 
     fun onMicStateChange(micEnabled: Boolean) {
-        this.micEnabled = micEnabled
+        ControllerAudio.micEnabled = micEnabled
     }
 
     fun stopRecord() {
-        if (::recorder.isInitialized) {
+        if (ControllerAudio::recorder.isInitialized) {
             try {
                 if (recorder.state == AudioRecord.STATE_INITIALIZED) recorder.stop()
                 recorder.release()
@@ -164,7 +164,7 @@ object ControllerAudio {
     }
 
     fun stopTrack() {
-        if (::track.isInitialized && trackReady) {
+        if (ControllerAudio::track.isInitialized && trackReady) {
             if (track.state == AudioTrack.STATE_INITIALIZED) track.stop()
             track.flush()
             track.release()
