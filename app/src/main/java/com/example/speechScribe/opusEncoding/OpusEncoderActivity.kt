@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -18,6 +19,16 @@ import androidx.core.content.ContextCompat
 import com.example.opus.Constants
 import com.example.opus.Opus
 import com.example.speechScribe.ui.theme.SpeechScribeTheme
+import org.gagravarr.opus.OpusAudioData
+import org.gagravarr.opus.OpusFile
+import org.gagravarr.opus.OpusInfo
+import org.gagravarr.opus.OpusTags
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 
 private const val TAG = "OpusEncoderActivity"
 
@@ -31,6 +42,11 @@ private lateinit var FRAME_SIZE_SHORT: Constants.FrameSize
 private lateinit var FRAME_SIZE_BYTE: Constants.FrameSize
 
 private var runLoop = false
+
+private var opusFile: OpusFile? = null
+private var fileOutputStream: FileOutputStream? = null
+private lateinit var currentOutputFile: File
+
 
 class OpusEncoderActivity : AppCompatActivity() {
     private val PERMISSIONS_REQUESTED_CODE = 123
@@ -49,6 +65,13 @@ class OpusEncoderActivity : AppCompatActivity() {
         SAMPLE_RATE = Constants.SampleRate._16000()
         CHANNELS = Constants.Channels.mono()
 
+        // Initialize OpusFile here
+        val tags = OpusTags()
+        val info = OpusInfo()
+        info.numChannels = CHANNELS.v
+        info.setSampleRate(SAMPLE_RATE.v.toLong())
+        opusFile = OpusFile(fileOutputStream, info, tags)
+
         setContent {
             var selectedChannelMode by remember { mutableStateOf(AudioMode.STEREO) }
 
@@ -58,6 +81,7 @@ class OpusEncoderActivity : AppCompatActivity() {
                         SAMPLE_RATE = newSampleRate
                     },
                     onStartRecording = {
+                        initializeOpusFile()
                         checkAndRequestPermissions()
                     },
                     onStopRecording = {
@@ -79,6 +103,7 @@ class OpusEncoderActivity : AppCompatActivity() {
     }
 
     private fun startLoop() {
+
         stopLoop()
 
         recalculateCodecValues()
@@ -109,8 +134,38 @@ class OpusEncoderActivity : AppCompatActivity() {
         stopLoop()
         ControllerAudio.stopRecord()
         ControllerAudio.stopTrack()
+
+        // Close the Opus file
+        opusFile?.close()
+        fileOutputStream?.close()
+
+        opusFile = null
+        fileOutputStream = null
+
+        Log.d(TAG, "Recording saved: ${currentOutputFile.absolutePath}")
+        Toast.makeText(this, "Recording saved", Toast.LENGTH_SHORT).show()
     }
 
+    private fun initializeOpusFile() {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val fileName = "opus_recording_$timestamp.opus"
+
+        val outputDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+        if (!outputDir.exists()) {
+            outputDir.mkdirs()
+        }
+        currentOutputFile = File(outputDir, fileName)
+        fileOutputStream = FileOutputStream(currentOutputFile)
+
+        Log.d(TAG, "Output file path: ${currentOutputFile.absolutePath}")
+
+        // Initialize OpusFile
+        val tags = OpusTags()
+        val info = OpusInfo()
+        info.numChannels = CHANNELS.v
+        info.setSampleRate(SAMPLE_RATE.v.toLong())
+        opusFile = OpusFile(fileOutputStream, info, tags)
+    }
 
     private fun handleBytes() {
         val frame = ControllerAudio.getFrame() ?: return
@@ -119,6 +174,9 @@ class OpusEncoderActivity : AppCompatActivity() {
             TAG,
             "encoded: ${frame.size} bytes of ${if (CHANNELS.v == 1) "MONO" else "STEREO"} audio into ${encodedFrame.size} bytes"
         )
+
+        val data = OpusAudioData(encodedFrame)
+        opusFile?.writeAudioData(data)
 
         val decodedFrame = codec.decode(encodedFrame, FRAME_SIZE_BYTE) ?: return
         Log.d(TAG, "decoded: ${decodedFrame.size} bytes")
