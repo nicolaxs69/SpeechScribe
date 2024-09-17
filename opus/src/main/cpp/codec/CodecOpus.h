@@ -1,6 +1,9 @@
-//
-// Created by Loboda Alexey on 21.05.2020.
-//
+/*
+ * This file is based on code from the public repository:
+ * Repository: [android-opus-codec](https://github.com/theeasiestway/android-opus-codec)
+ * Author: Loboda Alexey
+ * Original Creation Date: 21.05.2020
+ */
 
 #ifndef OPUS_CODECOPUS_H
 #define OPUS_CODECOPUS_H

@@ -2,8 +2,7 @@
  * This file is based on code from the public repository:
  * Repository: [android-opus-codec](https://github.com/theeasiestway/android-opus-codec)
  * Author: Loboda Alexey
- * Original Creation Date: 21.05.2020
- * Modified by: Nicolas Escobar on 13/09/2024
+ * Original Creation Date: 13/09/2024
  */
 
 #include <string>

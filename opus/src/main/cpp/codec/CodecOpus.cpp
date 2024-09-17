@@ -1,6 +1,10 @@
-//
-// Created by Loboda Alexey on 21.05.2020.
-//
+
+/*
+ * This file is based on code from the public repository:
+ * Repository: [android-opus-codec](https://github.com/theeasiestway/android-opus-codec)
+ * Author: Loboda Alexey
+ * Original Creation Date: 21.05.2020
+ */
 
 #include "CodecOpus.h"
 #include "../utils/SamplesConverter.h"
@@ -12,7 +16,10 @@
 
 int CodecOpus::encoderInit(int sampleRate, int numChannels, int application) {
 
-    if (numChannels != 1 && numChannels != 2) LOGE(TAG, "[encoderInit] numChannels is incorrect: %d - it must be either 1 or 2, otherwise the encoder may works incorrectly", numChannels);
+    if (numChannels != 1 && numChannels != 2)
+        LOGE(TAG,
+             "[encoderInit] numChannels is incorrect: %d - it must be either 1 or 2, otherwise the encoder may works incorrectly",
+             numChannels);
 
     int size = opus_encoder_get_size(numChannels);
 
@@ -21,15 +28,17 @@ int CodecOpus::encoderInit(int sampleRate, int numChannels, int application) {
         return size;
     }
 
-    encoder = (OpusEncoder*) malloc((size_t) size);
+    encoder = (OpusEncoder *) malloc((size_t) size);
 
     int ret = opus_encoder_init(encoder, sampleRate, numChannels, application);
 
     if (ret) {
-        LOGE(TAG, "[encoderInit] couldn't init encoder ret: %d; error: %s", ret, opus_strerror(ret));
+        LOGE(TAG, "[encoderInit] couldn't init encoder ret: %d; error: %s", ret,
+             opus_strerror(ret));
         free(encoder);
         return -1;
-    } else LOGD(TAG, "[encoderInit] encoder successfully initialized");
+    } else
+        LOGD(TAG, "[encoderInit] encoder successfully initialized");
 
     return 0;
 }
@@ -63,9 +72,10 @@ std::vector<uint8_t> CodecOpus::encode(uint8_t *bytes, int frameSize) {
     if (ret < 0) return result;
 
     int maxBytesCount = sizeof(unsigned char) * 1024;
-    unsigned char *outBuffer = (unsigned char*) malloc((size_t) maxBytesCount);
+    unsigned char *outBuffer = (unsigned char *) malloc((size_t) maxBytesCount);
 
-    int resultLength = opus_encode(encoder, (opus_int16 *) bytes, frameSize, outBuffer, maxBytesCount);
+    int resultLength = opus_encode(encoder, (opus_int16 *) bytes, frameSize, outBuffer,
+                                   maxBytesCount);
     if (resultLength <= 0) {
         LOGE(TAG, "[encode] error: %s", opus_strerror(resultLength));
         return result;
@@ -87,7 +97,10 @@ void CodecOpus::encoderRelease() {
 
 int CodecOpus::decoderInit(int sampleRate, int numChannels) {
 
-    if (numChannels != 1 && numChannels != 2) LOGE(TAG, "[decoderInit] numChannels is incorrect: %d - it must be either 1 or 2, otherwise the decoder may works incorrectly", numChannels);
+    if (numChannels != 1 && numChannels != 2)
+        LOGE(TAG,
+             "[decoderInit] numChannels is incorrect: %d - it must be either 1 or 2, otherwise the decoder may works incorrectly",
+             numChannels);
 
     int size = opus_decoder_get_size(numChannels);
 
@@ -96,15 +109,17 @@ int CodecOpus::decoderInit(int sampleRate, int numChannels) {
         return size;
     }
 
-    decoder = (OpusDecoder*) malloc((size_t) size);
+    decoder = (OpusDecoder *) malloc((size_t) size);
 
     int ret = opus_decoder_init(decoder, sampleRate, numChannels);
 
     if (ret) {
-        LOGE(TAG, "[decoderInit] couldn't init decoder ret: %d; error: %s", ret, opus_strerror(ret));
+        LOGE(TAG, "[decoderInit] couldn't init decoder ret: %d; error: %s", ret,
+             opus_strerror(ret));
         free(decoder);
         return -1;
-    } else LOGD(TAG, "[decoderInit] decoder successfully initialized");
+    } else
+        LOGD(TAG, "[decoderInit] decoder successfully initialized");
 
     decoderNumChannels = numChannels;
 
@@ -124,7 +139,7 @@ std::vector<uint8_t> CodecOpus::decode(uint8_t *bytes, int length, int frameSize
     int ret = checkForNull("decode", false);
     if (ret < 0) return result;
 
-    opus_int16 *outBuffer = (opus_int16*) malloc(sizeof(opus_int16) * 1024);
+    opus_int16 *outBuffer = (opus_int16 *) malloc(sizeof(opus_int16) * 1024);
 
     int resultLength = opus_decode(decoder, bytes, length, outBuffer, frameSize, fec);
     if (resultLength <= 0) {
@@ -148,7 +163,8 @@ int CodecOpus::checkForNull(const char *methodName, bool isEncoder) {
     const char *typeName = isEncoder ? "encoder" : "decoder";
 
     if (isEncoder && !encoder || !isEncoder && !decoder) {
-        LOGE(TAG, "[%s] %s wasn't initialized you must call %sInit() first", methodName, typeName, typeName);
+        LOGE(TAG, "[%s] %s wasn't initialized you must call %sInit() first", methodName, typeName,
+             typeName);
         return -1;
     }
     return 0;

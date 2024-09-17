@@ -3,9 +3,12 @@ package com.example.opus
 import android.util.Log
 
 
-//
-// Created by Loboda Alexey on 21.05.2020.
-//
+/*
+ * This file is based on code from the public repository:
+ * Repository: [android-opus-codec](https://github.com/theeasiestway/android-opus-codec)
+ * Author: Loboda Alexey
+ * Original Creation Date: 21.05.2020
+ */
 
 class Opus {
 
