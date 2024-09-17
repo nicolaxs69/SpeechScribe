@@ -9,13 +9,17 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.opus.Constants
 import com.example.opus.Opus
 import com.example.speechScribe.ui.theme.SpeechScribeTheme
 
-private val TAG = "OpusEncoderActivity"
+private const val TAG = "OpusEncoderActivity"
 
 private val codec = Opus()
 private val APPLICATION = Constants.Application.audio()
@@ -42,15 +46,33 @@ class OpusEncoderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SAMPLE_RATE = Constants.SampleRate._16000()
+        CHANNELS = Constants.Channels.mono()
+
         setContent {
+            var selectedChannelMode by remember { mutableStateOf(AudioMode.STEREO) }
+
             SpeechScribeTheme {
                 OpusEncoderScreen(
+                    onSampleRateChange = { newSampleRate ->
+                        SAMPLE_RATE = newSampleRate
+                    },
                     onStartRecording = {
                         checkAndRequestPermissions()
                     },
                     onStopRecording = {
                         stopRecording()
-                    }
+                    },
+                    onChannelModeChange = { newChannelMode ->
+                        selectedChannelMode = newChannelMode
+                        CHANNELS =
+                            if (newChannelMode == AudioMode.MONO) {
+                                Constants.Channels.mono()
+                            } else {
+                                Constants.Channels.stereo()
+                            }
+                    },
+                    selectedChannelMode = selectedChannelMode
                 )
             }
         }
@@ -163,7 +185,6 @@ class OpusEncoderActivity : AppCompatActivity() {
 
     private fun recalculateCodecValues() {
         DEF_FRAME_SIZE = getDefaultFrameSize(SAMPLE_RATE.v)
-//        CHANNELS = if (vMono.isChecked) Constants.Channels.mono() else Constants.Channels.stereo()
         /** "CHUNK_SIZE = DEF_FRAME_SIZE.v * CHANNELS.v * 2" it's formula from opus.h "frame_size*channels*sizeof(opus_int16)" */
         CHUNK_SIZE =
             DEF_FRAME_SIZE.v * CHANNELS.v * 2                                              // bytes or shorts in a frame

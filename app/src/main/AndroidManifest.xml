@@ -34,7 +34,7 @@
         <activity
             android:name=".opusEncoding.OpusEncoderActivity"
             android:exported="true"
-            android:theme="@style/Theme.SpeechScribe"
+            android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
             />
     </application>
 

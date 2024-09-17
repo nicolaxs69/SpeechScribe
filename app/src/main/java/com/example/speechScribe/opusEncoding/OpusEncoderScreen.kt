@@ -23,13 +23,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.opus.Constants
 
-private val TAG = "OpuseEncoderScreen"
-private lateinit var SAMPLE_RATE: Constants.SampleRate
+enum class AudioMode { MONO, STEREO }
+
+private enum class SamplingRate(val value: String, val sampleRate: Constants.SampleRate) {
+    RATE_8K("8000", Constants.SampleRate._8000()),
+    RATE_12K("12000", Constants.SampleRate._12000()),
+    RATE_16K("16000", Constants.SampleRate._16000()),
+    RATE_24K("24000", Constants.SampleRate._24000()),
+    RATE_48K("48000", Constants.SampleRate._48000())
+}
 
 @Composable
 fun OpusEncoderScreen(
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
+    onSampleRateChange: (Constants.SampleRate) -> Unit,
+    onChannelModeChange: (AudioMode) -> Unit,
+    selectedChannelMode: AudioMode
 ) {
 
     var isRecording by remember { mutableStateOf(false) }
@@ -40,11 +50,10 @@ fun OpusEncoderScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SampleRateSlider()
+        SampleRateSlider(onSampleRateChange, isRecording)
         Button(
             modifier = Modifier
                 .padding(horizontal = 8.dp),
-            enabled = !isRecording,
             onClick = {
                 isRecording = !isRecording
                 if (isRecording) {
@@ -54,105 +63,96 @@ fun OpusEncoderScreen(
                 }
             },
         ) {
-            if (isRecording) Text("Stop recording") else Text("Start recording")
+            Text(if (isRecording) "Stop recording" else "Start recording")
         }
 
-        RecordingChannelSettings()
+        RecordingChannelSettings(
+            selectedChannelMode = selectedChannelMode,
+            onChannelModeChange = onChannelModeChange,
+            isRecording = isRecording
+        )
     }
 }
 
 @Composable
-fun SampleRateSlider() {
-    var slidePosition by remember { mutableFloatStateOf(0f) }
+fun SampleRateSlider(
+    onSampleRateChange: (Constants.SampleRate) -> Unit,
+    isRecording: Boolean
+) {
+    var selectedSampleRate by remember { mutableStateOf(SamplingRate.RATE_8K) }
 
     Column(
         modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.Center,
     ) {
         Slider(
+            enabled = !isRecording,
             modifier = Modifier.padding(horizontal = 8.dp),
-            value = slidePosition,
+            value = selectedSampleRate.ordinal.toFloat(),
             onValueChange = { progress ->
-                slidePosition = progress
-                SAMPLE_RATE = getSampleRate(progress.toInt())
+                selectedSampleRate = SamplingRate.entries.toTypedArray()[progress.toInt()]
+                onSampleRateChange(selectedSampleRate.sampleRate)
             },
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.secondary,
                 inactiveTrackColor = MaterialTheme.colorScheme.secondaryContainer
             ),
-            valueRange = 0f..4f,
+            valueRange = 0f..(SamplingRate.entries.size - 1f),
             steps = 3,
         )
         Text(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally),
-            text = "Sample rate: ${getSamplingPosition(slidePosition.toInt())} Hz",
+            text = "Sample rate: ${selectedSampleRate.value} Hz",
         )
     }
 }
 
 @Composable
-fun RecordingChannelSettings() {
+fun RecordingChannelSettings(
+    selectedChannelMode: AudioMode,
+    onChannelModeChange: (AudioMode) -> Unit,
+    isRecording: Boolean
+) {
     Row(
         modifier = Modifier.padding(8.dp)
     ) {
-        MonoChannelButton()
-        StereoChannelButton()
+        ChannelButton(
+            label = "Mono",
+            selected = selectedChannelMode == AudioMode.MONO,
+            onClick = {
+                onChannelModeChange(AudioMode.MONO)
+            },
+            enabled = !isRecording
+        )
+        ChannelButton(
+            label = "Stereo",
+            selected = selectedChannelMode == AudioMode.STEREO,
+            onClick = {
+                onChannelModeChange(AudioMode.STEREO)
+            },
+            enabled = !isRecording
+        )
     }
 }
 
 @Composable
-fun MonoChannelButton() {
+fun ChannelButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(
-            selected = true,
-            onClick = {
-//                onMonoChannelSelected()
-            },
+            enabled = enabled,
+            selected = selected,
+            onClick = onClick,
         )
-        Text("Mono")
-    }
-}
-
-@Composable
-fun StereoChannelButton() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(
-            selected = false,
-            onClick = {
-                //onStereoChannelSelected()
-            },
-        )
-        Text("Stereo")
-    }
-}
-
-private fun getSamplingPosition(position: Int): String {
-    return when (position) {
-        0 -> SamplingRate.RATE_8K.value
-        1 -> SamplingRate.RATE_12K.value
-        2 -> SamplingRate.RATE_16K.value
-        3 -> SamplingRate.RATE_24K.value
-        4 -> SamplingRate.RATE_48K.value
-        else -> SamplingRate.RATE_8K.value
-    }
-}
-
-private fun getSampleRate(v: Int): Constants.SampleRate {
-    return when (v) {
-        0 -> Constants.SampleRate._8000()
-        1 -> Constants.SampleRate._12000()
-        2 -> Constants.SampleRate._16000()
-        3 -> Constants.SampleRate._24000()
-        4 -> Constants.SampleRate._48000()
-        else -> {
-            Constants.SampleRate._8000()
-        }
+        Text(label)
     }
 }
 
@@ -162,5 +162,8 @@ fun OpusEncoderScreenPreview() {
     OpusEncoderScreen(
         onStartRecording = {},
         onStopRecording = {},
+        onChannelModeChange = {},
+        onSampleRateChange = {},
+        selectedChannelMode = AudioMode.MONO
     )
 }

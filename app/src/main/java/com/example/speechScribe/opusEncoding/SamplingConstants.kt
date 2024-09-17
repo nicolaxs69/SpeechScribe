@@ -1,7 +1,7 @@
 package com.example.speechScribe.opusEncoding
 
 
-enum class SamplingRate(val value: String) {
+enum class SamplingRate2(val value: String) {
     RATE_8K("8K"),
     RATE_12K("12K"),
     RATE_16K("16K"),
