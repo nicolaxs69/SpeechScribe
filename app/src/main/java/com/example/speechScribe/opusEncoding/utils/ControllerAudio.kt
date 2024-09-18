@@ -1,4 +1,4 @@
-package com.example.speechScribe.opusEncoding
+package com.example.speechScribe.opusEncoding.utils
 
 import android.content.Context
 import android.content.pm.PackageManager

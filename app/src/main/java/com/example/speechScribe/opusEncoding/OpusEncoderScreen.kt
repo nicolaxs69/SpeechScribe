@@ -3,7 +3,9 @@ package com.example.speechScribe.opusEncoding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -35,14 +37,12 @@ private enum class SamplingRate(val value: String, val sampleRate: Constants.Sam
 
 @Composable
 fun OpusEncoderScreen(
+    uiState: OpusEncoderUiState,
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onSampleRateChange: (Constants.SampleRate) -> Unit,
     onChannelModeChange: (AudioMode) -> Unit,
-    selectedChannelMode: AudioMode
 ) {
-
-    var isRecording by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -50,36 +50,45 @@ fun OpusEncoderScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SampleRateSlider(onSampleRateChange, isRecording)
-        Button(
-            modifier = Modifier
-                .padding(horizontal = 8.dp),
-            onClick = {
-                isRecording = !isRecording
-                if (isRecording) {
-                    onStartRecording()
-                } else {
-                    onStopRecording()
-                }
-            },
-        ) {
-            Text(if (isRecording) "Stop recording" else "Start recording")
-        }
+        SampleRateSlider(
+            selectedSampleRate = uiState.sampleRate,
+            onSampleRateChange = onSampleRateChange,
+            isRecording = uiState.isRecording
+        )
 
         RecordingChannelSettings(
-            selectedChannelMode = selectedChannelMode,
+            selectedChannelMode = uiState.channelMode,
             onChannelModeChange = onChannelModeChange,
-            isRecording = isRecording
+            isRecording = uiState.isRecording
         )
+
+        Button(
+            onClick = if (uiState.isRecording) onStopRecording else onStartRecording,
+            enabled = !uiState.isRecording || uiState.opusFile != null
+        ) {
+            Text(if (uiState.isRecording) "Stop Recording" else "Start Recording")
+        }
+
+        if (uiState.isRecording) {
+            Text(
+                "Recording in progress...",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 16.dp)
+            )
+        }
     }
 }
 
 @Composable
 fun SampleRateSlider(
+    selectedSampleRate: Constants.SampleRate,
     onSampleRateChange: (Constants.SampleRate) -> Unit,
     isRecording: Boolean
 ) {
-    var selectedSampleRate by remember { mutableStateOf(SamplingRate.RATE_8K) }
+    var selectedSamplingRate by remember {
+        mutableStateOf(SamplingRate.entries.find { it.sampleRate == selectedSampleRate }
+            ?: SamplingRate.RATE_8K)
+    }
 
     Column(
         modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 20.dp),
@@ -88,23 +97,24 @@ fun SampleRateSlider(
         Slider(
             enabled = !isRecording,
             modifier = Modifier.padding(horizontal = 8.dp),
-            value = selectedSampleRate.ordinal.toFloat(),
+            value = SamplingRate.entries.indexOf(selectedSamplingRate).toFloat(),
             onValueChange = { progress ->
-                selectedSampleRate = SamplingRate.entries.toTypedArray()[progress.toInt()]
-                onSampleRateChange(selectedSampleRate.sampleRate)
+                val newSamplingRate = SamplingRate.entries[progress.toInt()]
+                selectedSamplingRate = newSamplingRate
+                onSampleRateChange(newSamplingRate.sampleRate)
             },
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.secondary,
                 inactiveTrackColor = MaterialTheme.colorScheme.secondaryContainer
             ),
-            valueRange = 0f..(SamplingRate.entries.size - 1f),
+            valueRange = 0f..(SamplingRate.entries.size - 1).toFloat(),
             steps = 3,
         )
         Text(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally),
-            text = "Sample rate: ${selectedSampleRate.value} Hz",
+            text = "Sample rate: ${selectedSamplingRate.value} Hz"
         )
     }
 }
@@ -164,6 +174,6 @@ fun OpusEncoderScreenPreview() {
         onStopRecording = {},
         onChannelModeChange = {},
         onSampleRateChange = {},
-        selectedChannelMode = AudioMode.MONO
+        uiState = OpusEncoderUiState()
     )
 }

@@ -5,50 +5,19 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
-import android.os.Environment
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.opus.Constants
-import com.example.opus.Opus
 import com.example.speechScribe.ui.theme.SpeechScribeTheme
-import org.gagravarr.opus.OpusAudioData
-import org.gagravarr.opus.OpusFile
-import org.gagravarr.opus.OpusInfo
-import org.gagravarr.opus.OpusTags
-import java.io.File
-import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-
-private const val TAG = "OpusEncoderActivity"
-
-private val codec = Opus()
-private val APPLICATION = Constants.Application.audio()
-private var CHUNK_SIZE = 0
-private lateinit var SAMPLE_RATE: Constants.SampleRate
-private lateinit var CHANNELS: Constants.Channels
-private lateinit var DEF_FRAME_SIZE: Constants.FrameSize
-private lateinit var FRAME_SIZE_SHORT: Constants.FrameSize
-private lateinit var FRAME_SIZE_BYTE: Constants.FrameSize
-
-private var runLoop = false
-
-private var opusFile: OpusFile? = null
-private var fileOutputStream: FileOutputStream? = null
-private lateinit var currentOutputFile: File
-
 
 class OpusEncoderActivity : AppCompatActivity() {
+    private val viewModel: OpusEncoderViewModel by viewModels()
+
     private val PERMISSIONS_REQUESTED_CODE = 123
 
     private val requiredPermissions = mutableListOf(
@@ -62,140 +31,27 @@ class OpusEncoderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        SAMPLE_RATE = Constants.SampleRate._16000()
-        CHANNELS = Constants.Channels.mono()
-
-        // Initialize OpusFile here
-        val tags = OpusTags()
-        val info = OpusInfo()
-        info.numChannels = CHANNELS.v
-        info.setSampleRate(SAMPLE_RATE.v.toLong())
-        opusFile = OpusFile(fileOutputStream, info, tags)
-
         setContent {
-            var selectedChannelMode by remember { mutableStateOf(AudioMode.STEREO) }
-
+            val uiState by viewModel.uiState.collectAsState()
             SpeechScribeTheme {
                 OpusEncoderScreen(
-                    onSampleRateChange = { newSampleRate ->
-                        SAMPLE_RATE = newSampleRate
-                    },
-                    onStartRecording = {
-                        initializeOpusFile()
-                        checkAndRequestPermissions()
-                    },
-                    onStopRecording = {
-                        stopRecording()
-                    },
-                    onChannelModeChange = { newChannelMode ->
-                        selectedChannelMode = newChannelMode
-                        CHANNELS =
-                            if (newChannelMode == AudioMode.MONO) {
-                                Constants.Channels.mono()
-                            } else {
-                                Constants.Channels.stereo()
-                            }
-                    },
-                    selectedChannelMode = selectedChannelMode
+                    uiState = uiState,
+                    onStartRecording = { checkAndRequestPermissions() },
+                    onStopRecording = { viewModel.stopRecording() },
+                    onSampleRateChange = { viewModel.updateSampleRate(it) },
+                    onChannelModeChange = { viewModel.updateChannelMode(it) }
                 )
             }
         }
     }
 
-    private fun startLoop() {
-
-        stopLoop()
-
-        recalculateCodecValues()
-
-        codec.encoderInit(SAMPLE_RATE, CHANNELS, APPLICATION)
-        codec.decoderInit(SAMPLE_RATE, CHANNELS)
-
-        ControllerAudio.initRecorder(this, SAMPLE_RATE.v, CHUNK_SIZE, CHANNELS.v == 1)
-        ControllerAudio.initTrack(SAMPLE_RATE.v, CHANNELS.v == 1)
-        ControllerAudio.startRecord()
-        runLoop = true
-        Thread {
-            while (runLoop) {
-                handleBytes()
-            }
-            if (!runLoop) {
-                codec.encoderRelease()
-                codec.decoderRelease()
-            }
-        }.start()
-    }
-
-    private fun stopLoop() {
-        runLoop = false
-    }
-
-    private fun stopRecording() {
-        stopLoop()
-        ControllerAudio.stopRecord()
-        ControllerAudio.stopTrack()
-
-        // Close the Opus file
-        opusFile?.close()
-        fileOutputStream?.close()
-
-        opusFile = null
-        fileOutputStream = null
-
-        Log.d(TAG, "Recording saved: ${currentOutputFile.absolutePath}")
-        Toast.makeText(this, "Recording saved", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun initializeOpusFile() {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "opus_recording_$timestamp.opus"
-
-        val outputDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-        if (!outputDir.exists()) {
-            outputDir.mkdirs()
-        }
-        currentOutputFile = File(outputDir, fileName)
-        fileOutputStream = FileOutputStream(currentOutputFile)
-
-        Log.d(TAG, "Output file path: ${currentOutputFile.absolutePath}")
-
-        // Initialize OpusFile
-        val tags = OpusTags()
-        val info = OpusInfo()
-        info.numChannels = CHANNELS.v
-        info.setSampleRate(SAMPLE_RATE.v.toLong())
-        opusFile = OpusFile(fileOutputStream, info, tags)
-    }
-
-    private fun handleBytes() {
-        val frame = ControllerAudio.getFrame() ?: return
-        val encodedFrame = codec.encode(frame, FRAME_SIZE_BYTE) ?: return
-        Log.d(
-            TAG,
-            "encoded: ${frame.size} bytes of ${if (CHANNELS.v == 1) "MONO" else "STEREO"} audio into ${encodedFrame.size} bytes"
-        )
-
-        val data = OpusAudioData(encodedFrame)
-        opusFile?.writeAudioData(data)
-
-        val decodedFrame = codec.decode(encodedFrame, FRAME_SIZE_BYTE) ?: return
-        Log.d(TAG, "decoded: ${decodedFrame.size} bytes")
-
-        ControllerAudio.write(decodedFrame)
-        Log.d(TAG, "===========================================")
+    private fun startRecording() {
+        viewModel.startRecording(this)
     }
 
     private fun checkAndRequestPermissions() {
-        val permissionsToRequest = mutableListOf<String>()
-
-        for (permission in requiredPermissions) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    permission
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                permissionsToRequest.add(permission)
-            }
+        val permissionsToRequest = requiredPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
 
         if (permissionsToRequest.isNotEmpty()) {
@@ -205,7 +61,7 @@ class OpusEncoderActivity : AppCompatActivity() {
                 PERMISSIONS_REQUESTED_CODE
             )
         } else {
-            startLoop()
+            startRecording()
         }
     }
 
@@ -215,15 +71,16 @@ class OpusEncoderActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            PERMISSIONS_REQUESTED_CODE -> {
-                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    startLoop()
-                } else {
-                    val deniedPermissions =
-                        permissions.filterIndexed { index, _ -> grantResults[index] != PackageManager.PERMISSION_GRANTED }
-                    handleDeniedPermissions(deniedPermissions)
-                }
+        if (requestCode == PERMISSIONS_REQUESTED_CODE) {
+            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                startRecording()
+            } else {
+                val deniedPermissions =
+                    permissions.filterIndexed { index, _ ->
+
+                        grantResults[index] != PackageManager.PERMISSION_GRANTED
+                    }
+                handleDeniedPermissions(deniedPermissions)
             }
         }
     }
@@ -239,27 +96,5 @@ class OpusEncoderActivity : AppCompatActivity() {
             else -> "Unknown error occurred with permissions."
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-    }
-
-    private fun recalculateCodecValues() {
-        DEF_FRAME_SIZE = getDefaultFrameSize(SAMPLE_RATE.v)
-        /** "CHUNK_SIZE = DEF_FRAME_SIZE.v * CHANNELS.v * 2" it's formula from opus.h "frame_size*channels*sizeof(opus_int16)" */
-        CHUNK_SIZE =
-            DEF_FRAME_SIZE.v * CHANNELS.v * 2                                              // bytes or shorts in a frame
-        FRAME_SIZE_SHORT =
-            Constants.FrameSize.fromValue(CHUNK_SIZE / CHANNELS.v)            // samples per channel
-        FRAME_SIZE_BYTE =
-            Constants.FrameSize.fromValue(CHUNK_SIZE / 2 / CHANNELS.v)         // samples per channel
-    }
-
-    private fun getDefaultFrameSize(v: Int): Constants.FrameSize {
-        return when (v) {
-            8000 -> Constants.FrameSize._160()
-            12000 -> Constants.FrameSize._240()
-            16000 -> Constants.FrameSize._160()
-            24000 -> Constants.FrameSize._240()
-            48000 -> Constants.FrameSize._120()
-            else -> throw IllegalArgumentException()
-        }
     }
 }
