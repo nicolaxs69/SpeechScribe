@@ -4,7 +4,10 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.opus.Constants
+import com.example.opus.Constants.Application
+import com.example.opus.Constants.Channels
+import com.example.opus.Constants.FrameSize
+import com.example.opus.Constants.SampleRate
 import com.example.opus.Opus
 import com.example.speechScribe.opusEncoding.utils.ControllerAudio
 import com.example.speechScribe.opusEncoding.utils.FileUtils
@@ -12,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.gagravarr.opus.OpusAudioData
 import org.gagravarr.opus.OpusFile
@@ -28,19 +32,22 @@ class OpusEncoderViewModel : ViewModel() {
     val uiState: StateFlow<OpusEncoderUiState> = _uiState.asStateFlow()
 
     private val codec = Opus()
-    private val application = Constants.Application.audio()
+    private val application = Application.audio()
     private var currentOutputFile: File? = null
+    private var fileOutputStream: FileOutputStream? = null
 
-    fun updateSampleRate(sampleRate: Constants.SampleRate) {
-        _uiState.value = _uiState.value.copy(sampleRate = sampleRate)
+    fun updateSampleRate(sampleRate: SampleRate) {
+        _uiState.update { it.copy(sampleRate = sampleRate) }
         recalculateCodecValues()
     }
 
     fun updateChannelMode(channelMode: AudioMode) {
-        _uiState.value = _uiState.value.copy(
-            channelMode = channelMode,
-            channels = if (channelMode == AudioMode.MONO) Constants.Channels.mono() else Constants.Channels.stereo()
-        )
+        _uiState.update {
+            it.copy(
+                channelMode = channelMode,
+                channels = if (channelMode == AudioMode.MONO) Channels.mono() else Channels.stereo()
+            )
+        }
         recalculateCodecValues()
     }
 
@@ -48,28 +55,24 @@ class OpusEncoderViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             initializeOpusFile(context)
             initializeCodec()
-            ControllerAudio.initRecorder(
-                context,
-                _uiState.value.sampleRate.v,
-                _uiState.value.chunkSize,
-                _uiState.value.channels.v == 1
-            )
-            ControllerAudio.initTrack(_uiState.value.sampleRate.v, _uiState.value.channels.v == 1)
-            ControllerAudio.startRecord()
-            _uiState.value = _uiState.value.copy(isRecording = true)
+            initializeCodec(context)
+            _uiState.update { it.copy(isRecording = true) }
             startRecordingLoop()
+        }
+    }
+
+    private fun initializeCodec(context: Context) {
+        with(uiState.value) {
+            ControllerAudio.initRecorder(context, sampleRate.value, chunkSize, channels.value == 1)
+            ControllerAudio.initTrack(sampleRate.value, channels.value == 1)
+            ControllerAudio.startRecord()
         }
     }
 
     fun stopRecording() {
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = _uiState.value.copy(isRecording = false)
-            ControllerAudio.stopRecord()
-            ControllerAudio.stopTrack()
-            releaseCodec()
-            _uiState.value.opusFile?.close()
-            _uiState.value.fileOutputStream?.close()
-            _uiState.value = _uiState.value.copy(opusFile = null, fileOutputStream = null)
+            _uiState.update { it.copy(isRecording = false) }
+            releaseResources()
             Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
         }
     }
@@ -77,24 +80,44 @@ class OpusEncoderViewModel : ViewModel() {
     private fun startRecordingLoop() {
         viewModelScope.launch(Dispatchers.IO) {
             while (_uiState.value.isRecording) {
-                handleBytes()
+                processAudioFrame()
             }
         }
     }
 
-    private fun handleBytes() {
-        val frame = ControllerAudio.getFrame() ?: return
-        val encodedFrame = codec.encode(frame, _uiState.value.frameSizeByte) ?: return
-        val data = OpusAudioData(encodedFrame)
+    private fun processAudioFrame() {
+        ControllerAudio.getFrame()?.let { frame ->
+            codec.encode(frame, _uiState.value.frameSizeByte)?.let { encodedFrame ->
+                writeEncodedFrame(encodedFrame)
+                playDecodedFrame(encodedFrame)
+            }
+        }
+    }
 
+    private fun writeEncodedFrame(encodedFrame: ByteArray) {
+        val data = OpusAudioData(encodedFrame)
         _uiState.value.opusFile?.writeAudioData(data)
-        val decodedFrame = codec.decode(encodedFrame, _uiState.value.frameSizeByte) ?: return
-        ControllerAudio.write(decodedFrame)
+    }
+
+    private fun playDecodedFrame(encodedFrame: ByteArray) {
+        codec.decode(encodedFrame, _uiState.value.frameSizeByte)?.let { decodedFrame ->
+            ControllerAudio.write(decodedFrame)
+        }
     }
 
     private fun releaseCodec() {
         codec.encoderRelease()
         codec.decoderRelease()
+    }
+
+    private fun releaseResources() {
+        ControllerAudio.stopRecord()
+        ControllerAudio.stopTrack()
+        releaseCodec()
+        _uiState.value.opusFile?.close()
+        fileOutputStream?.close()
+        _uiState.update { it.copy(opusFile = null) }
+        fileOutputStream = null
     }
 
     private fun initializeCodec() {
@@ -103,26 +126,29 @@ class OpusEncoderViewModel : ViewModel() {
     }
 
     private fun recalculateCodecValues() {
-        val defFrameSize = getDefaultFrameSize(_uiState.value.sampleRate.v)
-        val chunkSize = defFrameSize.v * _uiState.value.channels.v * 2
-        val frameSizeShort = Constants.FrameSize.fromValue(chunkSize / _uiState.value.channels.v)
-        val frameSizeByte = Constants.FrameSize.fromValue(chunkSize / 2 / _uiState.value.channels.v)
+        val state = uiState.value
+        val defFrameSize = getDefaultFrameSize(state.sampleRate.value)
+        val chunkSize = defFrameSize.value * state.channels.value * BYTES_PER_SAMPLE
+        val frameSizeShort = FrameSize.fromValue(chunkSize / state.channels.value)
+        val frameSizeByte = FrameSize.fromValue(chunkSize / BYTES_PER_SAMPLE / state.channels.value)
 
-        _uiState.value = _uiState.value.copy(
-            defFrameSize = defFrameSize,
-            chunkSize = chunkSize,
-            frameSizeShort = frameSizeShort,
-            frameSizeByte = frameSizeByte
-        )
+        _uiState.update {
+            it.copy(
+                defFrameSize = defFrameSize,
+                chunkSize = chunkSize,
+                frameSizeShort = frameSizeShort,
+                frameSizeByte = frameSizeByte
+            )
+        }
     }
 
-    private fun getDefaultFrameSize(sampleRate: Int): Constants.FrameSize {
+    private fun getDefaultFrameSize(sampleRate: Int): FrameSize {
         return when (sampleRate) {
-            8000 -> Constants.FrameSize._160()
-            12000 -> Constants.FrameSize._240()
-            16000 -> Constants.FrameSize._160()
-            24000 -> Constants.FrameSize._240()
-            48000 -> Constants.FrameSize._120()
+            8000 -> FrameSize._160()
+            12000 -> FrameSize._240()
+            16000 -> FrameSize._160()
+            24000 -> FrameSize._240()
+            48000 -> FrameSize._120()
             else -> throw IllegalArgumentException("Unsupported sample rate: $sampleRate")
         }
     }
@@ -134,25 +160,27 @@ class OpusEncoderViewModel : ViewModel() {
 
         val tags = OpusTags()
         val info = OpusInfo().apply {
-            numChannels = _uiState.value.channels.v
-            setSampleRate(_uiState.value.sampleRate.v.toLong())
+            numChannels = _uiState.value.channels.value
+            setSampleRate(_uiState.value.sampleRate.value.toLong())
         }
-        val opusFile = OpusFile(outputStream, info, tags)
-        _uiState.value = _uiState.value.copy(opusFile = opusFile, fileOutputStream = outputStream)
+        _uiState.update { it.copy(opusFile = OpusFile(outputStream, info, tags)) }
     }
-
 }
-
 
 data class OpusEncoderUiState(
     val isRecording: Boolean = false,
-    val sampleRate: Constants.SampleRate = Constants.SampleRate._16000(),
+    val sampleRate: SampleRate = SampleRate._16000(),
     val channelMode: AudioMode = AudioMode.MONO,
-    val channels: Constants.Channels = Constants.Channels.mono(),
-    val defFrameSize: Constants.FrameSize = Constants.FrameSize._160(),
+    val channels: Channels = Channels.mono(),
+    val defFrameSize: FrameSize = FrameSize._160(),
     val chunkSize: Int = 0,
-    val frameSizeShort: Constants.FrameSize = Constants.FrameSize._160(),
-    val frameSizeByte: Constants.FrameSize = Constants.FrameSize._160(),
-    val opusFile: OpusFile? = null,
-    val fileOutputStream: FileOutputStream? = null
+    val frameSizeShort: FrameSize = FrameSize._160(),
+    val frameSizeByte: FrameSize = FrameSize._160(),
+    val opusFile: OpusFile? = null
 )
+
+enum class AudioMode { MONO, STEREO }
+
+private const val BYTES_PER_SAMPLE = 2 // For 16-bit audio
+
+

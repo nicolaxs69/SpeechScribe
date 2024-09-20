@@ -10,7 +10,6 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -21,9 +20,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SpeechScribe">
         <activity
-            android:name=".MainActivity"
+            android:name=".opusEncoding.OpusEncoderActivity"
             android:exported="true"
-            android:theme="@style/Theme.SpeechScribe">
+            android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -32,10 +31,9 @@
         </activity>
 
         <activity
-            android:name=".opusEncoding.OpusEncoderActivity"
+            android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
-            />
+            android:theme="@style/Theme.SpeechScribe" />
     </application>
 
 </manifest>

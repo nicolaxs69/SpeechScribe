@@ -12,7 +12,7 @@ import androidx.annotation.IntRange
 
 object Constants {
 
-    class SampleRate private constructor(val v: Int) {
+    class SampleRate private constructor(val value: Int) {
 
         /** Sampling rate of input signal (Hz)
          * This must be one of 8000, 12000, 16000, 24000, or 48000. */
@@ -26,14 +26,14 @@ object Constants {
         }
     }
 
-    class Channels private constructor(val v: Int) {
+    class Channels private constructor(val value: Int) {
         companion object {
             fun mono() = Channels(1)
             fun stereo() = Channels(2)
         }
     }
 
-    class Application private constructor(val v: Int) {
+    class Application private constructor(val value: Int) {
 
         /** voip - Best for most VoIP/videoconference applications where listening quality and intelligibility matter most.
          * audio - Best for broadcast/high-fidelity application where the decoded audio should be as close as possible to the input.
@@ -46,7 +46,7 @@ object Constants {
         }
     }
 
-    class Complexity private constructor(val v: Int) {
+    class Complexity private constructor(val value: Int) {
 
         /** The Opus encoder uses its maximum algorithmic complexity setting of 10 by default.
          * This means that it does not hesitate to use CPU to give you the best quality encoding at a given bitrate.
@@ -62,7 +62,7 @@ object Constants {
         }
     }
 
-    class Bitrate private constructor(val v: Int) {
+    class Bitrate private constructor(val value: Int) {
 
         /** Configures the bitrate in the encoder.
          * Rates from 500 to 512000 bits per second are meaningful, as well as the
@@ -88,7 +88,7 @@ object Constants {
         }
     }
 
-    class FrameSize private constructor(val v: Int) {
+    class FrameSize private constructor(val value: Int) {
 
         /** Number of samples per channel in the input signal.
          * This must be an Opus frame size for
