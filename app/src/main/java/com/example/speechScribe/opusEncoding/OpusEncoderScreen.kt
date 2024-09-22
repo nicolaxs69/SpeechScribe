@@ -80,10 +80,8 @@ fun SampleRateSlider(
     onSampleRateChange: (Constants.SampleRate) -> Unit,
     isRecording: Boolean
 ) {
-    var selectedSamplingRate by remember {
-        mutableStateOf(SamplingRate.entries.find { it.sampleRate == selectedSampleRate }
-            ?: SamplingRate.RATE_8K)
-    }
+    val selectedSamplingRate = SamplingRate.entries.find { it.sampleRate == selectedSampleRate }
+        ?: SamplingRate.RATE_8K
 
     Column(
         modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 20.dp),
@@ -95,7 +93,6 @@ fun SampleRateSlider(
             value = SamplingRate.entries.indexOf(selectedSamplingRate).toFloat(),
             onValueChange = { progress ->
                 val newSamplingRate = SamplingRate.entries[progress.toInt()]
-                selectedSamplingRate = newSamplingRate
                 onSampleRateChange(newSamplingRate.sampleRate)
             },
             colors = SliderDefaults.colors(

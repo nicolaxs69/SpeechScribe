@@ -23,6 +23,7 @@ import org.gagravarr.opus.OpusInfo
 import org.gagravarr.opus.OpusTags
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 
 
 class OpusEncoderViewModel : ViewModel() {
@@ -53,15 +54,19 @@ class OpusEncoderViewModel : ViewModel() {
 
     fun startRecording(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
-            initializeOpusFile(context)
-            initializeCodec()
-            initializeCodec(context)
-            _uiState.update { it.copy(isRecording = true) }
-            startRecordingLoop()
+            try {
+                initializeOpusFile(context)
+                initializeCodec()
+                initializeAudioControllers(context)
+                _uiState.update { it.copy(isRecording = true) }
+                startRecordingLoop()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting recording", e)
+            }
         }
     }
 
-    private fun initializeCodec(context: Context) {
+    private fun initializeAudioControllers(context: Context) {
         with(uiState.value) {
             ControllerAudio.initRecorder(context, sampleRate.value, chunkSize, channels.value == 1)
             ControllerAudio.initTrack(sampleRate.value, channels.value == 1)
@@ -71,9 +76,13 @@ class OpusEncoderViewModel : ViewModel() {
 
     fun stopRecording() {
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(isRecording = false) }
-            releaseResources()
-            Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
+            try {
+                _uiState.update { it.copy(isRecording = false) }
+                releaseResources()
+                Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping recording", e)
+            }
         }
     }
 
@@ -111,13 +120,18 @@ class OpusEncoderViewModel : ViewModel() {
     }
 
     private fun releaseResources() {
-        ControllerAudio.stopRecord()
-        ControllerAudio.stopTrack()
-        releaseCodec()
-        _uiState.value.opusFile?.close()
-        fileOutputStream?.close()
-        _uiState.update { it.copy(opusFile = null) }
-        fileOutputStream = null
+        try {
+            ControllerAudio.stopRecord()
+            ControllerAudio.stopTrack()
+            releaseCodec()
+            _uiState.value.opusFile?.close()
+            fileOutputStream?.close()
+        } catch (e: IOException) {
+            Log.e(TAG, "Error releasing resources", e)
+        } finally {
+            _uiState.update { it.copy(opusFile = null) }
+            fileOutputStream = null
+        }
     }
 
     private fun initializeCodec() {
@@ -130,7 +144,8 @@ class OpusEncoderViewModel : ViewModel() {
         val defFrameSize = getDefaultFrameSize(state.sampleRate.value)
         val chunkSize = defFrameSize.value * state.channels.value * BYTES_PER_SAMPLE
         val frameSizeShort = FrameSize.fromValue(chunkSize / state.channels.value)
-        val frameSizeByte = FrameSize.fromValue(chunkSize / BYTES_PER_SAMPLE / state.channels.value)
+        val frameSizeByte =
+            FrameSize.fromValue(chunkSize / BYTES_PER_SAMPLE / state.channels.value)
 
         _uiState.update {
             it.copy(
