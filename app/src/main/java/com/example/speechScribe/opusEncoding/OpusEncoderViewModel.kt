@@ -24,6 +24,7 @@ import org.gagravarr.opus.OpusTags
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import kotlin.math.sqrt
 
 
 class OpusEncoderViewModel : ViewModel() {
@@ -32,10 +33,18 @@ class OpusEncoderViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(OpusEncoderUiState())
     val uiState: StateFlow<OpusEncoderUiState> = _uiState.asStateFlow()
 
+    private val _amplitudes = MutableStateFlow<List<Int>>(emptyList())
+    val amplitudes: StateFlow<List<Int>> = _amplitudes.asStateFlow()
+
     private val codec = Opus()
     private val application = Application.audio()
     private var currentOutputFile: File? = null
     private var fileOutputStream: FileOutputStream? = null
+
+    private val amplitudeThreshold = 40
+    private val baselineAmplitude = 0
+    private val smoothingWindowSize = 5
+    private val amplitudeBuffer = mutableListOf<Int>()
 
     fun updateSampleRate(sampleRate: SampleRate) {
         _uiState.update { it.copy(sampleRate = sampleRate) }
@@ -55,6 +64,7 @@ class OpusEncoderViewModel : ViewModel() {
     fun startRecording(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                _amplitudes.update { emptyList() } // Clear the list of amplitudes
                 initializeOpusFile(context)
                 initializeCodec()
                 initializeAudioControllers(context)
@@ -79,6 +89,7 @@ class OpusEncoderViewModel : ViewModel() {
             try {
                 _uiState.update { it.copy(isRecording = false) }
                 releaseResources()
+                _amplitudes.update { emptyList() } // Clear the list of amplitudes
                 Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
             } catch (e: Exception) {
                 Log.e(TAG, "Error stopping recording", e)
@@ -94,13 +105,46 @@ class OpusEncoderViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Processes an audio frame by performing the following steps:
+     * 1. Retrieves an audio frame from the ControllerAudio.
+     * 2. Calculates the amplitude of the frame.
+     * 3. Compares the calculated amplitude with a predefined threshold and adds the appropriate amplitude to the buffer.
+     * 4. If the buffer size reaches the smoothing window size, calculates the average amplitude, updates the amplitude list, and removes the oldest amplitude from the buffer.
+     * 5. If the buffer size is less than the smoothing window size, updates the amplitude list with the baseline amplitude.
+     * 6. Encodes the audio frame using the codec and, if successful, writes and plays the encoded frame.
+     */
     private fun processAudioFrame() {
         ControllerAudio.getFrame()?.let { frame ->
+
+            val amplitude = calculateAmplitude(frame)
+
+            val processedAmplitude =
+                if (amplitude > amplitudeThreshold) amplitude else baselineAmplitude
+            amplitudeBuffer.add(processedAmplitude)
+
+            if (amplitudeBuffer.size >= smoothingWindowSize) {
+                val smoothedAmplitude = amplitudeBuffer.average().toInt()
+                amplitudeBuffer.removeAt(0)
+
+                _amplitudes.update { it + smoothedAmplitude }
+            } else {
+                _amplitudes.update { it + baselineAmplitude }
+            }
+
             codec.encode(frame, _uiState.value.frameSizeByte)?.let { encodedFrame ->
                 writeEncodedFrame(encodedFrame)
                 playDecodedFrame(encodedFrame)
             }
         }
+    }
+
+
+    private fun calculateAmplitude(frame: ByteArray): Int {
+        // Calculate the root mean square (RMS) amplitude of the frame
+        val sum = frame.sumOf { it * it }
+        val rms = sqrt(sum.toDouble() / frame.size)
+        return rms.toInt()
     }
 
     private fun writeEncodedFrame(encodedFrame: ByteArray) {

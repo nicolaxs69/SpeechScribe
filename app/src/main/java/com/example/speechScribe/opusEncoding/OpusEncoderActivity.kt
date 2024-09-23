@@ -33,9 +33,11 @@ class OpusEncoderActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val uiState by viewModel.uiState.collectAsState()
+            val amplitudes by viewModel.amplitudes.collectAsState()
             SpeechScribeTheme {
                 OpusEncoderScreen(
                     uiState = uiState,
+                    amplitudes = amplitudes,
                     onStartRecording = { checkAndRequestPermissions() },
                     onStopRecording = { viewModel.stopRecording() },
                     onSampleRateChange = { viewModel.updateSampleRate(it) },

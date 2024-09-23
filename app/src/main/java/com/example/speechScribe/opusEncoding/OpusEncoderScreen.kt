@@ -1,9 +1,13 @@
 package com.example.speechScribe.opusEncoding
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -12,15 +16,18 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.opus.Constants
+import com.linc.audiowaveform.AudioWaveform
+import com.linc.audiowaveform.infiniteVerticalGradient
+import com.linc.audiowaveform.model.AmplitudeType
+import com.linc.audiowaveform.model.WaveformAlignment
 
 private enum class SamplingRate(val value: String, val sampleRate: Constants.SampleRate) {
     RATE_8K("8000", Constants.SampleRate._8000()),
@@ -33,11 +40,18 @@ private enum class SamplingRate(val value: String, val sampleRate: Constants.Sam
 @Composable
 fun OpusEncoderScreen(
     uiState: OpusEncoderUiState,
+    amplitudes: List<Int>,
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onSampleRateChange: (Constants.SampleRate) -> Unit,
     onChannelModeChange: (AudioMode) -> Unit,
 ) {
+
+    val animatedGradientBrush = Brush.infiniteVerticalGradient(
+        colors = listOf(Color.Blue, Color.Green),
+        animation = tween(durationMillis = 2000, easing = LinearEasing  ),
+        width = 128F
+    )
 
     Column(
         modifier = Modifier
@@ -45,6 +59,23 @@ fun OpusEncoderScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+
+        AudioWaveform(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            amplitudes = amplitudes,
+            amplitudeType = AmplitudeType.Avg,
+            spikeWidth = 4.dp,
+            spikePadding = 2.dp,
+            spikeRadius = 4.dp,
+            progress = 1f, // Use 1f for full progress since it's live data
+            progressBrush = animatedGradientBrush,
+            waveformBrush = SolidColor(Color.LightGray),
+            waveformAlignment = WaveformAlignment.Center,
+            onProgressChange = {},
+            onProgressChangeFinished = {}
+        )
         SampleRateSlider(
             selectedSampleRate = uiState.sampleRate,
             onSampleRateChange = onSampleRateChange,
@@ -166,6 +197,7 @@ fun OpusEncoderScreenPreview() {
         onStopRecording = {},
         onChannelModeChange = {},
         onSampleRateChange = {},
-        uiState = OpusEncoderUiState()
+        uiState = OpusEncoderUiState(),
+        amplitudes = listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
     )
 }

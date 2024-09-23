@@ -79,5 +79,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(project(":opus"))
-    implementation("org.gagravarr:vorbis-java-core:0.8")
+    implementation(libs.gagravarr.vorbis.java.core)
+    implementation(libs.compose.audiowaveform)
 }
