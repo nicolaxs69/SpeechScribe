@@ -6,7 +6,7 @@
     </style>
 
     <!-- AppCompat Theme for OpusEncoderActivity -->
-    <style name="Theme.SpeechScribe.AppCompat" parent="Theme.AppCompat.Light.DarkActionBar">
+    <style name="Theme.SpeechScribe.AppCompat" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">@color/background</item>
     </style>
 </resources>

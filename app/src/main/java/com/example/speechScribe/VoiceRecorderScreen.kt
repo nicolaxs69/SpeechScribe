@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.speechScribe.ui.components.timer.TimerUiState
 import com.example.speechScribe.ui.theme.Blue
 import com.example.speechScribe.ui.theme.LightGray
 import com.linc.audiowaveform.AudioWaveform
@@ -45,19 +44,19 @@ fun VoiceRecorderScreen(
     onResumeRecording: () -> Unit,
     onPauseRecording: () -> Unit,
     onStopRecording: () -> Unit,
+    onDiscardRecording: () -> Unit
 ) {
 
     val animatedGradientBrush = Brush.infiniteVerticalGradient(
         colors = listOf(Color.Blue, Color.Green),
-        animation = tween(durationMillis = 2000, easing = LinearEasing),
+        animation = tween(durationMillis = ANIMATION_DURATION, easing = LinearEasing),
         width = 128F
     )
 
     Column(
         modifier = Modifier
-            .padding(top = 360.dp)
             .fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.SpaceEvenly,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AudioWaveform(
@@ -66,8 +65,8 @@ fun VoiceRecorderScreen(
                 .height(100.dp),
             amplitudes = amplitudes,
             amplitudeType = AmplitudeType.Avg,
-            spikeWidth = 4.dp,
-            spikePadding = 2.dp,
+            spikeWidth = 8.dp,
+            spikePadding = 10.dp,
             spikeRadius = 4.dp,
             progress = 1f, // Use 1f for full progress since it's live data
             progressBrush = animatedGradientBrush,
@@ -77,36 +76,39 @@ fun VoiceRecorderScreen(
             onProgressChangeFinished = {}
         )
 
-
         TimerComponent(
             timerValue = uiState.timer,
-            isPaused = uiState.isPaused,
-            isRecording = uiState.isRecording
+            isPaused = uiState.recordingState is RecordingState.Paused,
+            isRecording = uiState.recordingState is RecordingState.Recording
         )
 
-        Spacer(modifier = Modifier.height(150.dp))
 
         RecordingButtons(
+            modifier = Modifier,
             uiState,
             onPauseRecording,
             onResumeRecording,
             onStartRecording,
-            onStopRecording
+            onStopRecording,
+            onDiscardRecording
         )
     }
 }
 
 @Composable
 private fun RecordingButtons(
+    modifier: Modifier,
     uiState: VoiceRecorderUiState,
     onPauseRecording: () -> Unit,
     onResumeRecording: () -> Unit,
     onStartRecording: () -> Unit,
-    onStopRecording: () -> Unit
+    onStopRecording: () -> Unit,
+    onDiscardRecording: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 50.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
@@ -119,7 +121,7 @@ private fun RecordingButtons(
                     .padding(8.dp)
                     .size(56.dp),
                 colors = IconButtonDefaults.iconButtonColors(containerColor = Blue),
-                onClick = { onStopRecording() },
+                onClick = { onDiscardRecording() },
                 content = {
                     Icon(
                         modifier = Modifier
@@ -143,31 +145,30 @@ private fun RecordingButtons(
                 .size(80.dp),
             colors = IconButtonDefaults.iconButtonColors(containerColor = LightGray),
             onClick = {
-                when {
-                    uiState.isRecording && !uiState.isPaused -> {
+                when (uiState.recordingState) {
+                    is RecordingState.Idle -> {
+                        onStartRecording()
+                    }
+
+                    is RecordingState.Recording -> {
                         onPauseRecording()
                     }
 
-                    uiState.isRecording && uiState.isPaused -> {
+                    is RecordingState.Paused -> {
                         onResumeRecording()
-                    }
-
-                    else -> {
-                        onStartRecording()
                     }
                 }
             },
             content = {
                 Icon(
-                    modifier = Modifier
-                        .size(40.dp),
-                    imageVector = if (!uiState.isPaused && uiState.isRecording) {
-                        ImageVector.vectorResource(id = R.drawable.pause_icon)
-                    } else {
-                        ImageVector.vectorResource(id = R.drawable.mic_icon)
+                    modifier = Modifier.size(40.dp),
+                    imageVector = when (uiState.recordingState) {
+                        is RecordingState.Idle -> ImageVector.vectorResource(id = R.drawable.mic_icon)
+                        is RecordingState.Recording -> ImageVector.vectorResource(id = R.drawable.pause_icon)
+                        is RecordingState.Paused -> ImageVector.vectorResource(id = R.drawable.mic_icon)
                     },
                     tint = Color.Red,
-                    contentDescription = "Record"
+                    contentDescription = "Record/Pause/Resume"
                 )
             }
         )
@@ -211,5 +212,6 @@ fun VoiceRecorderScreenPreview() {
         onPauseRecording = {},
         onResumeRecording = {},
         onStopRecording = {},
+        onDiscardRecording = {}
     )
 }

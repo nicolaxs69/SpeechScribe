@@ -22,7 +22,7 @@
         <activity
             android:name=".opusEncoding.OpusEncoderActivity"
             android:exported="true"
-            android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+            android:theme="@style/Theme.SpeechScribe.AppCompat">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

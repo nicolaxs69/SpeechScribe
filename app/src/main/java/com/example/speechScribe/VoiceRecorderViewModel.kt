@@ -33,9 +33,10 @@ class VoiceRecorderViewModel : ViewModel() {
     companion object {
         private const val TAG = "VoiceRecorderViewModel"
         private const val AMPLITUDE_THRESHOLD = 40
-        private const val BASELINE_AMPLITUDE = 0
+        private const val BASELINE_AMPLITUDE = 10
         private const val SMOOTHING_WINDOW_SIZE = 5
         private const val BYTES_PER_SAMPLE = 2 // For 16-bit audio
+        private const val MAX_AMPLITUDES = 300
     }
 
     private val _uiState = MutableStateFlow(VoiceRecorderUiState())
@@ -60,15 +61,15 @@ class VoiceRecorderViewModel : ViewModel() {
     +      */
 
     fun startRecording(context: Context) {
+        _uiState.update { it.copy(recordingState = RecordingState.Recording) }
         startTimer()
-        _uiState.update { it.copy(isRecording = true) }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 _amplitudes.update { emptyList() } // Clear the list of amplitudes
                 initializeRecording(context)
 
-                while (_uiState.value.isRecording) {
+                while (_uiState.value.recordingState is RecordingState.Recording) {
                     processAudioFrame()
                 }
 
@@ -97,7 +98,7 @@ class VoiceRecorderViewModel : ViewModel() {
     fun stopRecording() {
         timerJob?.cancel()
         timerJob = null
-        _uiState.update { it.copy(timer = 0, isRecording = false, isPaused = false) }
+        _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -112,7 +113,7 @@ class VoiceRecorderViewModel : ViewModel() {
 
     fun pauseRecording() {
         timerJob?.cancel()
-        _uiState.update { it.copy(isPaused = true) }
+        _uiState.update { it.copy(recordingState = RecordingState.Paused) }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -127,14 +128,43 @@ class VoiceRecorderViewModel : ViewModel() {
 
     fun resumeRecording(context: Context) {
         startTimer()
-        _uiState.update { it.copy(isPaused = false) }
+        _uiState.update { it.copy(recordingState = RecordingState.Recording) }
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 resumeAudioRecording(context)  // Resume capturing audio frames
-                Log.d(TAG, "Recording resumed")
+                while (_uiState.value.recordingState is RecordingState.Recording) {
+                    processAudioFrame()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error resuming recording", e)
+            }
+        }
+    }
+
+    fun discardRecording() {
+        timerJob?.cancel()
+        timerJob = null
+        _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Stop recording and release resources
+                ControllerAudio.stopRecord()
+                ControllerAudio.stopTrack()
+                releaseCodec()
+                // Close and delete the opus file without saving
+                _uiState.value.opusFile?.close()
+                fileOutputStream?.close()
+                currentOutputFile?.delete() // Delete the file
+                // Reset the state
+                _uiState.update { it.copy(opusFile = null) }
+                fileOutputStream = null
+                currentOutputFile = null
+                _amplitudes.update { emptyList() }
+                Log.d(TAG, "Recording discarded")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error discarding recording", e)
             }
         }
     }
@@ -149,32 +179,32 @@ class VoiceRecorderViewModel : ViewModel() {
      * 6. Encodes the audio frame using the codec and, if successful, writes and plays the encoded frame.
      */
     private fun processAudioFrame() {
-        if (_uiState.value.isPaused) {
+        if (_uiState.value.recordingState is RecordingState.Paused) {
             // If the recording is paused, skip processing the audio frame
             return
         }
-
         ControllerAudio.getFrame()?.let { frame ->
-
-            val amplitude = calculateAmplitude(frame)
-
-            val processedAmplitude =
-                if (amplitude > AMPLITUDE_THRESHOLD) amplitude else BASELINE_AMPLITUDE
-            amplitudeBuffer.add(processedAmplitude)
-
-            if (amplitudeBuffer.size >= SMOOTHING_WINDOW_SIZE) {
-                val smoothedAmplitude = amplitudeBuffer.average().toInt()
-                amplitudeBuffer.removeAt(0)
-
-                _amplitudes.update { it + smoothedAmplitude }
-            } else {
-                _amplitudes.update { it + BASELINE_AMPLITUDE }
-            }
+            computeWaveformAmplitudes(frame)
 
             codec.encode(frame, _uiState.value.frameSizeByte)?.let { encodedFrame ->
                 writeEncodedFrame(encodedFrame)
-                playDecodedFrame(encodedFrame)
             }
+        }
+    }
+
+    private fun computeWaveformAmplitudes(frame: ByteArray) {
+        val amplitude = calculateAmplitude(frame)
+
+        val processedAmplitude =
+            if (amplitude > AMPLITUDE_THRESHOLD) amplitude else BASELINE_AMPLITUDE
+        amplitudeBuffer.add(processedAmplitude)
+
+        if (amplitudeBuffer.size >= SMOOTHING_WINDOW_SIZE) {
+            val smoothedAmplitude = amplitudeBuffer.average().toInt()
+            amplitudeBuffer.removeAt(0)
+            _amplitudes.update { (it + smoothedAmplitude).takeLast(MAX_AMPLITUDES) }
+        } else {
+            _amplitudes.update { (it + BASELINE_AMPLITUDE).takeLast(MAX_AMPLITUDES) }
         }
     }
 
@@ -189,12 +219,6 @@ class VoiceRecorderViewModel : ViewModel() {
     private fun writeEncodedFrame(encodedFrame: ByteArray) {
         val data = OpusAudioData(encodedFrame)
         _uiState.value.opusFile?.writeAudioData(data)
-    }
-
-    private fun playDecodedFrame(encodedFrame: ByteArray) {
-        codec.decode(encodedFrame, _uiState.value.frameSizeByte)?.let { decodedFrame ->
-            ControllerAudio.write(decodedFrame)
-        }
     }
 
     private fun releaseCodec() {
@@ -277,10 +301,15 @@ class VoiceRecorderViewModel : ViewModel() {
     }
 }
 
+sealed class RecordingState {
+    data object Idle : RecordingState()
+    data object Recording : RecordingState()
+    data object Paused : RecordingState()
+}
+
 data class VoiceRecorderUiState(
     val timer: Long = 0,
-    val isRecording: Boolean = false,
-    val isPaused: Boolean = false,
+    val recordingState: RecordingState = RecordingState.Idle,
     val sampleRate: SampleRate = SampleRate._16000(),
     val channelMode: AudioMode = AudioMode.MONO,
     val channels: Channels = Channels.mono(),
@@ -290,6 +319,8 @@ data class VoiceRecorderUiState(
     val frameSizeByte: FrameSize = FrameSize._160(),
     val opusFile: OpusFile? = null
 )
+
+const val ANIMATION_DURATION = 300
 
 enum class AudioMode { MONO, STEREO }
 

@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -37,6 +38,7 @@ class OpusEncoderActivity : AppCompatActivity() {
             val amplitudes by voiceRecorderViewModel.amplitudes.collectAsState()
             val recordingState by voiceRecorderViewModel.uiState.collectAsState()
             SpeechScribeTheme {
+                Log.d("OpusEncoderActivity", "onCreate: ${amplitudes.size}")
                 VoiceRecorderScreen(
                     uiState = recordingState,
                     amplitudes = amplitudes,
@@ -44,6 +46,7 @@ class OpusEncoderActivity : AppCompatActivity() {
                     onPauseRecording = { voiceRecorderViewModel.pauseRecording() },
                     onResumeRecording = { voiceRecorderViewModel.resumeRecording(this) },
                     onStopRecording = { voiceRecorderViewModel.stopRecording() },
+                    onDiscardRecording = { voiceRecorderViewModel.discardRecording() }
                 )
             }
         }
