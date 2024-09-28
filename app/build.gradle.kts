@@ -84,6 +84,6 @@ dependencies {
     implementation(libs.compose.audiowaveform)
 
     // Firebase dependencies
-    implementation("com.google.firebase:firebase-analytics")
+    implementation(libs.firebase.analytics)
     implementation(libs.firebase.bom)
 }

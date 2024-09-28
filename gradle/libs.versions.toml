@@ -15,10 +15,12 @@ material = "1.12.0"
 vorbisJavaCore = "0.8"
 vorbisJavaCoreVersion = "0.8"
 googleServices = "4.4.2"
+firebaseAnalytics = "22.1.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 compose-audiowaveform = { module = "com.github.lincollincol:compose-audiowaveform", version.ref = "composeAudiowaveform" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics", version.ref = "firebaseAnalytics" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 gagravarr-vorbis-java-core = { module = "org.gagravarr:vorbis-java-core", version.ref = "vorbisJavaCoreVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
