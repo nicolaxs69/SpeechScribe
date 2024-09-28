@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Custom Compose Theme -->
+    <style name="Theme.SpeechScribe" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+    </style>
 
-    <style name="Theme.SpeechScribe" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- AppCompat Theme for OpusEncoderActivity -->
+    <style name="Theme.SpeechScribe.AppCompat" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="android:windowBackground">@color/background</item>
+    </style>
 </resources>

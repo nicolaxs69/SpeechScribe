@@ -13,10 +13,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.speechScribe.VoiceRecorderScreen
+import com.example.speechScribe.VoiceRecorderViewModel
+import com.example.speechScribe.ui.components.timer.TimerViewModel
 import com.example.speechScribe.ui.theme.SpeechScribeTheme
 
 class OpusEncoderActivity : AppCompatActivity() {
     private val viewModel: OpusEncoderViewModel by viewModels()
+    private val voiceRecorderViewModel: VoiceRecorderViewModel by viewModels()
+    private val timerViewmodel: TimerViewModel by viewModels()
 
     private val PERMISSIONS_REQUESTED_CODE = 123
 
@@ -34,21 +39,51 @@ class OpusEncoderActivity : AppCompatActivity() {
         setContent {
             val uiState by viewModel.uiState.collectAsState()
             val amplitudes by viewModel.amplitudes.collectAsState()
+            val timer by timerViewmodel.timerUiState.collectAsState()
+            val recordingState by voiceRecorderViewModel.uiState.collectAsState()
             SpeechScribeTheme {
-                OpusEncoderScreen(
-                    uiState = uiState,
+
+                VoiceRecorderScreen(
+                    timerUiState = timer,
+                    uiState = recordingState,
                     amplitudes = amplitudes,
-                    onStartRecording = { checkAndRequestPermissions() },
-                    onStopRecording = { viewModel.stopRecording() },
-                    onSampleRateChange = { viewModel.updateSampleRate(it) },
-                    onChannelModeChange = { viewModel.updateChannelMode(it) }
+                    onStartRecording = {
+                        voiceRecorderViewModel.startRecording(this)
+//                        checkAndRequestPermissions()
+                    },
+                    onPauseRecording = {
+                        voiceRecorderViewModel.pauseRecording()
+//                        viewModel.pauseRecording()
+                    },
+                    onResumeRecording = {
+                        voiceRecorderViewModel.resumeRecording(this)
+//                        timerViewmodel.startTimer()
+//                        viewModel.resumeRecording(this)
+                    },
+                    onStopRecording = {
+                        voiceRecorderViewModel.stopRecording()
+//                        timerViewmodel.stopTimer()
+//                        viewModel.stopRecording()
+                    },
                 )
+
+//                OpusEncoderScreen(
+//                    uiState = uiState,
+//                    amplitudes = amplitudes,
+//                    onStartRecording = { checkAndRequestPermissions() },
+//                    onStopRecording = { viewModel.stopRecording() },
+//                    onPauseRecording = { viewModel.pauseRecording() },
+//                    onResumeRecording = { viewModel.resumeRecording(this) },
+//                    onSampleRateChange = { viewModel.updateSampleRate(it) },
+//                    onChannelModeChange = { viewModel.updateChannelMode(it) }
+//                )
             }
         }
     }
 
     private fun startRecording() {
-        viewModel.startRecording(this)
+//        viewModel.startRecording(this)
+//        timerViewmodel.startTimer()
     }
 
     private fun checkAndRequestPermissions() {
