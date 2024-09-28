@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +29,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.speechScribe.opusEncoding.OpusEncoderUiState
 import com.example.speechScribe.ui.components.timer.TimerUiState
 import com.example.speechScribe.ui.theme.Blue
 import com.example.speechScribe.ui.theme.LightGray
@@ -40,7 +40,6 @@ import com.linc.audiowaveform.model.WaveformAlignment
 @Composable
 fun VoiceRecorderScreen(
     uiState: VoiceRecorderUiState,
-    timerUiState: TimerUiState,
     amplitudes: List<Int>,
     onStartRecording: () -> Unit,
     onResumeRecording: () -> Unit,
@@ -58,33 +57,37 @@ fun VoiceRecorderScreen(
         modifier = Modifier
             .padding(top = 360.dp)
             .fillMaxSize(),
-//        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-//        AudioWaveform(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .height(100.dp),
-//            amplitudes = amplitudes,
-//            amplitudeType = AmplitudeType.Avg,
-//            spikeWidth = 4.dp,
-//            spikePadding = 2.dp,
-//            spikeRadius = 4.dp,
-//            progress = 1f, // Use 1f for full progress since it's live data
-//            progressBrush = animatedGradientBrush,
-//            waveformBrush = SolidColor(Color.LightGray),
-//            waveformAlignment = WaveformAlignment.Center,
-//            onProgressChange = {},
-//            onProgressChangeFinished = {}
-//        )
+        AudioWaveform(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            amplitudes = amplitudes,
+            amplitudeType = AmplitudeType.Avg,
+            spikeWidth = 4.dp,
+            spikePadding = 2.dp,
+            spikeRadius = 4.dp,
+            progress = 1f, // Use 1f for full progress since it's live data
+            progressBrush = animatedGradientBrush,
+            waveformBrush = SolidColor(Color.LightGray),
+            waveformAlignment = WaveformAlignment.Center,
+            onProgressChange = {},
+            onProgressChangeFinished = {}
+        )
 
-        TimerComponent(timerValue = uiState.timer)
+
+        TimerComponent(
+            timerValue = uiState.timer,
+            isPaused = uiState.isPaused,
+            isRecording = uiState.isRecording
+        )
 
         Spacer(modifier = Modifier.height(150.dp))
 
         RecordingButtons(
             uiState,
-            timerUiState,
             onPauseRecording,
             onResumeRecording,
             onStartRecording,
@@ -96,7 +99,6 @@ fun VoiceRecorderScreen(
 @Composable
 private fun RecordingButtons(
     uiState: VoiceRecorderUiState,
-    timerUiState: TimerUiState,
     onPauseRecording: () -> Unit,
     onResumeRecording: () -> Unit,
     onStartRecording: () -> Unit,
@@ -108,22 +110,32 @@ private fun RecordingButtons(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        IconButton(
-            modifier = Modifier
-                .padding(8.dp)
-                .size(56.dp),
-            colors = IconButtonDefaults.iconButtonColors(containerColor = Blue),
-            onClick = { onStopRecording() },
-            content = {
-                Icon(
-                    modifier = Modifier
-                        .size(30.dp),
-                    imageVector = Icons.Default.Close,
-                    tint = Color.White,
-                    contentDescription = "Stop"
-                )
-            }
-        )
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconButton(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(56.dp),
+                colors = IconButtonDefaults.iconButtonColors(containerColor = Blue),
+                onClick = { onStopRecording() },
+                content = {
+                    Icon(
+                        modifier = Modifier
+                            .size(30.dp),
+                        imageVector = Icons.Default.Close,
+                        tint = Color.White,
+                        contentDescription = "Stop"
+                    )
+                }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Cancel",
+                color = Color.White
+            )
+        }
 
         IconButton(
             modifier = Modifier
@@ -160,22 +172,32 @@ private fun RecordingButtons(
             }
         )
 
-        IconButton(
-            modifier = Modifier
-                .padding(8.dp)
-                .size(56.dp),
-            colors = IconButtonDefaults.iconButtonColors(containerColor = Blue),
-            onClick = { onStopRecording() },
-            content = {
-                Icon(
-                    modifier = Modifier
-                        .size(30.dp),
-                    imageVector = Icons.Default.Done,
-                    tint = Color.White,
-                    contentDescription = "Save"
-                )
-            }
-        )
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            IconButton(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(56.dp),
+                colors = IconButtonDefaults.iconButtonColors(containerColor = Blue),
+                onClick = { onStopRecording() },
+                content = {
+                    Icon(
+                        modifier = Modifier
+                            .size(30.dp),
+                        imageVector = Icons.Default.Done,
+                        tint = Color.White,
+                        contentDescription = "Save"
+                    )
+                }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Save",
+                color = Color.White
+            )
+        }
     }
 }
 
@@ -183,7 +205,6 @@ private fun RecordingButtons(
 @Composable
 fun VoiceRecorderScreenPreview() {
     VoiceRecorderScreen(
-        timerUiState = TimerUiState(),
         uiState = VoiceRecorderUiState(),
         amplitudes = listOf(1, 2, 3, 4, 5),
         onStartRecording = {},

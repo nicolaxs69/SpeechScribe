@@ -53,62 +53,40 @@ class VoiceRecorderViewModel : ViewModel() {
 
     private var timerJob: Job? = null
 
-    fun updateSampleRate(sampleRate: SampleRate) {
-        _uiState.update { it.copy(sampleRate = sampleRate) }
-        recalculateCodecValues()
-    }
-
-    fun updateChannelMode(channelMode: AudioMode) {
-        _uiState.update {
-            it.copy(
-                channelMode = channelMode,
-                channels = if (channelMode == AudioMode.MONO) Channels.mono() else Channels.stereo()
-            )
-        }
-        recalculateCodecValues()
-    }
+    /**
+    +      * Starts the recording process by initializing the necessary components and updating the UI state.
+    +      *
+    +      * @param context The context used to initialize audio controllers and file operations.
+    +      */
 
     fun startRecording(context: Context) {
         startTimer()
         _uiState.update { it.copy(isRecording = true) }
-        Log.d(TAG, "Recording started")
-//        viewModelScope.launch(Dispatchers.IO) {
-//            try {
-////                _amplitudes.update { emptyList() } // Clear the list of amplitudes
-////                initializeRecording(context)
-//
-//                _uiState.update { it.copy(isRecording = true) }
-//
-////                while (_uiState.value.isRecording) {
-////                    processAudioFrame()
-////                }
-//
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Error starting recording", e)
-//            }
-//        }
-    }
 
-    private fun startTimer() {
-        timerJob?.cancel()
-        timerJob = viewModelScope.launch {
-            while (isActive) {
-                delay(1000)
-                _uiState.update {
-                    it.copy(timer = it.timer + 1)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _amplitudes.update { emptyList() } // Clear the list of amplitudes
+                initializeRecording(context)
+
+                while (_uiState.value.isRecording) {
+                    processAudioFrame()
                 }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "IO Error starting recording: ${e.message}", e)
             }
         }
     }
 
     private fun initializeRecording(context: Context) {
+        calculateCodecValues()
         initializeOpusFile(context)
         initializeCodec()
-        initializeAudioControllers(context)
+        resumeAudioRecording(context)
     }
 
 
-    private fun initializeAudioControllers(context: Context) {
+    private fun resumeAudioRecording(context: Context) {
         with(uiState.value) {
             ControllerAudio.initRecorder(context, sampleRate.value, chunkSize, channels.value == 1)
             ControllerAudio.initTrack(sampleRate.value, channels.value == 1)
@@ -117,55 +95,48 @@ class VoiceRecorderViewModel : ViewModel() {
     }
 
     fun stopRecording() {
-        // Stop timer
         timerJob?.cancel()
         timerJob = null
         _uiState.update { it.copy(timer = 0, isRecording = false, isPaused = false) }
-        Log.d(TAG, "Recording stopped")
 
-//        viewModelScope.launch(Dispatchers.IO) {
-//            try {
-//                _uiState.update { it.copy(timer = 0, isRecording = false) }
-//                releaseResources()
-//                _amplitudes.update { emptyList() } // Clear the list of amplitudes
-//                Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Error stopping recording", e)
-//            }
-//        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                releaseResources()
+                _amplitudes.update { emptyList() } // Clear the list of amplitudes
+                Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping recording", e)
+            }
+        }
     }
 
     fun pauseRecording() {
-        // Start the timer
         timerJob?.cancel()
         _uiState.update { it.copy(isPaused = true) }
-        Log.d(TAG, "Recording paused")
 
-//        viewModelScope.launch(Dispatchers.IO) {
-//            try {
-//                _uiState.update { it.copy(isPaused = true) }
-//                ControllerAudio.stopRecord()  // Stop capturing audio frames
-//                Log.d(TAG, "Recording paused")
-//
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Error pausing recording", e)
-//            }
-//        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                ControllerAudio.stopRecord()  // Stop capturing audio frames
+                Log.d(TAG, "Recording paused")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error pausing recording", e)
+            }
+        }
     }
 
     fun resumeRecording(context: Context) {
         startTimer()
         _uiState.update { it.copy(isPaused = false) }
-        Log.d(TAG, "Recording resumed")
-//        viewModelScope.launch(Dispatchers.IO) {
-//            try {
-//                _uiState.update { it.copy(isPaused = false) }
-//                initializeAudioControllers(context)  // Resume capturing audio frames
-//                Log.d(TAG, "Recording resumed")
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Error resuming recording", e)
-//            }
-//        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                resumeAudioRecording(context)  // Resume capturing audio frames
+                Log.d(TAG, "Recording resumed")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resuming recording", e)
+            }
+        }
     }
 
     /**
@@ -239,7 +210,7 @@ class VoiceRecorderViewModel : ViewModel() {
             _uiState.value.opusFile?.close()
             fileOutputStream?.close()
         } catch (e: IOException) {
-            Log.e(TAG, "Error releasing resources", e)
+            Log.e(TAG, "Error stopping recording: ${e.message}", e)
         } finally {
             _uiState.update { it.copy(opusFile = null) }
             fileOutputStream = null
@@ -251,7 +222,7 @@ class VoiceRecorderViewModel : ViewModel() {
         codec.decoderInit(_uiState.value.sampleRate, _uiState.value.channels)
     }
 
-    private fun recalculateCodecValues() {
+    private fun calculateCodecValues() {
         val state = uiState.value
         val defFrameSize = getDefaultFrameSize(state.sampleRate.value)
         val chunkSize = defFrameSize.value * state.channels.value * BYTES_PER_SAMPLE
@@ -277,6 +248,18 @@ class VoiceRecorderViewModel : ViewModel() {
             24000 -> FrameSize._240()
             48000 -> FrameSize._120()
             else -> throw IllegalArgumentException("Unsupported sample rate: $sampleRate")
+        }
+    }
+
+    private fun startTimer() {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+                _uiState.update {
+                    it.copy(timer = it.timer + 1)
+                }
+            }
         }
     }
 
