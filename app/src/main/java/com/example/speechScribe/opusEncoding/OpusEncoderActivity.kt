@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -13,10 +14,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.speechScribe.VoiceRecorderScreen
+import com.example.speechScribe.VoiceRecorderViewModel
 import com.example.speechScribe.ui.theme.SpeechScribeTheme
 
 class OpusEncoderActivity : AppCompatActivity() {
-    private val viewModel: OpusEncoderViewModel by viewModels()
+    private val voiceRecorderViewModel: VoiceRecorderViewModel by viewModels()
 
     private val PERMISSIONS_REQUESTED_CODE = 123
 
@@ -32,23 +35,25 @@ class OpusEncoderActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val uiState by viewModel.uiState.collectAsState()
-            val amplitudes by viewModel.amplitudes.collectAsState()
+            val amplitudes by voiceRecorderViewModel.amplitudes.collectAsState()
+            val recordingState by voiceRecorderViewModel.uiState.collectAsState()
             SpeechScribeTheme {
-                OpusEncoderScreen(
-                    uiState = uiState,
+                Log.d("OpusEncoderActivity", "onCreate: ${amplitudes.size}")
+                VoiceRecorderScreen(
+                    uiState = recordingState,
                     amplitudes = amplitudes,
                     onStartRecording = { checkAndRequestPermissions() },
-                    onStopRecording = { viewModel.stopRecording() },
-                    onSampleRateChange = { viewModel.updateSampleRate(it) },
-                    onChannelModeChange = { viewModel.updateChannelMode(it) }
+                    onPauseRecording = { voiceRecorderViewModel.pauseRecording() },
+                    onResumeRecording = { voiceRecorderViewModel.resumeRecording(this) },
+                    onStopRecording = { voiceRecorderViewModel.stopRecording() },
+                    onDiscardRecording = { voiceRecorderViewModel.discardRecording() }
                 )
             }
         }
     }
 
     private fun startRecording() {
-        viewModel.startRecording(this)
+        voiceRecorderViewModel.startRecording(this)
     }
 
     private fun checkAndRequestPermissions() {

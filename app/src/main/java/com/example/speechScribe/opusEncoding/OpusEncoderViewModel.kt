@@ -28,7 +28,14 @@ import kotlin.math.sqrt
 
 
 class OpusEncoderViewModel : ViewModel() {
-    private val TAG = "OpusEncoderViewModel"
+
+    companion object {
+        private const val TAG = "OpusEncoderViewModel"
+        private const val AMPLITUDE_THRESHOLD = 40
+        private const val BASELINE_AMPLITUDE = 0
+        private const val SMOOTHING_WINDOW_SIZE = 5
+        private const val BYTES_PER_SAMPLE = 2 // For 16-bit audio
+    }
 
     private val _uiState = MutableStateFlow(OpusEncoderUiState())
     val uiState: StateFlow<OpusEncoderUiState> = _uiState.asStateFlow()
@@ -41,9 +48,6 @@ class OpusEncoderViewModel : ViewModel() {
     private var currentOutputFile: File? = null
     private var fileOutputStream: FileOutputStream? = null
 
-    private val amplitudeThreshold = 40
-    private val baselineAmplitude = 0
-    private val smoothingWindowSize = 5
     private val amplitudeBuffer = mutableListOf<Int>()
 
     fun updateSampleRate(sampleRate: SampleRate) {
@@ -105,6 +109,30 @@ class OpusEncoderViewModel : ViewModel() {
         }
     }
 
+    fun pauseRecording() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isPaused = true) }
+                ControllerAudio.stopRecord()  // Stop capturing audio frames
+                Log.d(TAG, "Recording paused")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error pausing recording", e)
+            }
+        }
+    }
+
+    fun resumeRecording(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isPaused = false) }
+                initializeAudioControllers(context)  // Resume capturing audio frames
+                Log.d(TAG, "Recording resumed")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resuming recording", e)
+            }
+        }
+    }
+
     /**
      * Processes an audio frame by performing the following steps:
      * 1. Retrieves an audio frame from the ControllerAudio.
@@ -115,21 +143,26 @@ class OpusEncoderViewModel : ViewModel() {
      * 6. Encodes the audio frame using the codec and, if successful, writes and plays the encoded frame.
      */
     private fun processAudioFrame() {
+        if (_uiState.value.isPaused) {
+            // If the recording is paused, skip processing the audio frame
+            return
+        }
+
         ControllerAudio.getFrame()?.let { frame ->
 
             val amplitude = calculateAmplitude(frame)
 
             val processedAmplitude =
-                if (amplitude > amplitudeThreshold) amplitude else baselineAmplitude
+                if (amplitude > AMPLITUDE_THRESHOLD) amplitude else BASELINE_AMPLITUDE
             amplitudeBuffer.add(processedAmplitude)
 
-            if (amplitudeBuffer.size >= smoothingWindowSize) {
+            if (amplitudeBuffer.size >= SMOOTHING_WINDOW_SIZE) {
                 val smoothedAmplitude = amplitudeBuffer.average().toInt()
                 amplitudeBuffer.removeAt(0)
 
                 _amplitudes.update { it + smoothedAmplitude }
             } else {
-                _amplitudes.update { it + baselineAmplitude }
+                _amplitudes.update { it + BASELINE_AMPLITUDE }
             }
 
             codec.encode(frame, _uiState.value.frameSizeByte)?.let { encodedFrame ->
@@ -228,6 +261,7 @@ class OpusEncoderViewModel : ViewModel() {
 
 data class OpusEncoderUiState(
     val isRecording: Boolean = false,
+    val isPaused: Boolean = false,
     val sampleRate: SampleRate = SampleRate._16000(),
     val channelMode: AudioMode = AudioMode.MONO,
     val channels: Channels = Channels.mono(),
@@ -239,7 +273,4 @@ data class OpusEncoderUiState(
 )
 
 enum class AudioMode { MONO, STEREO }
-
-private const val BYTES_PER_SAMPLE = 2 // For 16-bit audio
-
 
