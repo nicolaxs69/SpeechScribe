@@ -1,6 +1,7 @@
 [versions]
 agp = "8.5.1"
 composeAudiowaveform = "1.1.2"
+firebaseBom = "33.4.0"
 kotlin = "1.9.0"
 coreKtx = "1.13.1"
 junit = "4.13.2"
@@ -13,10 +14,12 @@ appcompat = "1.7.0"
 material = "1.12.0"
 vorbisJavaCore = "0.8"
 vorbisJavaCoreVersion = "0.8"
+googleServices = "4.4.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 compose-audiowaveform = { module = "com.github.lincollincol:compose-audiowaveform", version.ref = "composeAudiowaveform" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 gagravarr-vorbis-java-core = { module = "org.gagravarr:vorbis-java-core", version.ref = "vorbisJavaCoreVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -39,4 +42,5 @@ vorbis-java-core = { module = "com.github.Gagravarr:vorbis-java-core", version.r
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 
