@@ -42,6 +42,8 @@ fun OpusEncoderScreen(
     uiState: OpusEncoderUiState,
     amplitudes: List<Int>,
     onStartRecording: () -> Unit,
+    onResumeRecording: () -> Unit,
+    onPauseRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onSampleRateChange: (Constants.SampleRate) -> Unit,
     onChannelModeChange: (AudioMode) -> Unit,
@@ -49,7 +51,7 @@ fun OpusEncoderScreen(
 
     val animatedGradientBrush = Brush.infiniteVerticalGradient(
         colors = listOf(Color.Blue, Color.Green),
-        animation = tween(durationMillis = 2000, easing = LinearEasing  ),
+        animation = tween(durationMillis = 2000, easing = LinearEasing),
         width = 128F
     )
 
@@ -88,11 +90,33 @@ fun OpusEncoderScreen(
             isRecording = uiState.isRecording
         )
 
-        Button(
-            onClick = if (uiState.isRecording) onStopRecording else onStartRecording,
-            enabled = !uiState.isRecording || uiState.opusFile != null
-        ) {
-            Text(if (uiState.isRecording) "Stop Recording" else "Start Recording")
+
+        Row {
+            when {
+                !uiState.isRecording -> {
+                    Button(onClick = onStartRecording) {
+                        Text("Start Recording")
+                    }
+                }
+
+                uiState.isPaused -> {
+                    Button(onClick = onResumeRecording) {
+                        Text("Resume Recording")
+                    }
+                    Button(onClick = onStopRecording) {
+                        Text("Stop Recording")
+                    }
+                }
+
+                else -> {
+                    Button(onClick = onPauseRecording) {
+                        Text("Pause Recording")
+                    }
+                    Button(onClick = onStopRecording) {
+                        Text("Stop Recording")
+                    }
+                }
+            }
         }
 
         if (uiState.isRecording) {
@@ -104,6 +128,7 @@ fun OpusEncoderScreen(
         }
     }
 }
+
 
 @Composable
 fun SampleRateSlider(
@@ -195,6 +220,8 @@ fun OpusEncoderScreenPreview() {
     OpusEncoderScreen(
         onStartRecording = {},
         onStopRecording = {},
+        onPauseRecording = {},
+        onResumeRecording = {},
         onChannelModeChange = {},
         onSampleRateChange = {},
         uiState = OpusEncoderUiState(),
