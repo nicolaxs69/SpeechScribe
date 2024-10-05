@@ -29,7 +29,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import kotlin.math.sqrt
 
-class VoiceRecorderViewModel : ViewModel() {
+class RecordingScreenViewModel : ViewModel() {
     companion object {
         private const val TAG = "VoiceRecorderViewModel"
         private const val AMPLITUDE_THRESHOLD = 40

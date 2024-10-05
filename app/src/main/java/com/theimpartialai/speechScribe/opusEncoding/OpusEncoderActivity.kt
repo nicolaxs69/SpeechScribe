@@ -14,12 +14,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.theimpartialai.speechScribe.VoiceRecorderScreen
-import com.theimpartialai.speechScribe.VoiceRecorderViewModel
+import com.theimpartialai.speechScribe.RecordingScreen
+import com.theimpartialai.speechScribe.RecordingScreenViewModel
 import com.theimpartialai.speechScribe.ui.theme.SpeechScribeTheme
 
 class OpusEncoderActivity : AppCompatActivity() {
-    private val voiceRecorderViewModel: VoiceRecorderViewModel by viewModels()
+    private val voiceRecorderViewModel: RecordingScreenViewModel by viewModels()
 
     private val PERMISSIONS_REQUESTED_CODE = 123
 
@@ -39,7 +39,7 @@ class OpusEncoderActivity : AppCompatActivity() {
             val recordingState by voiceRecorderViewModel.uiState.collectAsState()
             SpeechScribeTheme {
                 Log.d("OpusEncoderActivity", "onCreate: ${amplitudes.size}")
-                VoiceRecorderScreen(
+                RecordingScreen(
                     uiState = recordingState,
                     amplitudes = amplitudes,
                     onStartRecording = { checkAndRequestPermissions() },

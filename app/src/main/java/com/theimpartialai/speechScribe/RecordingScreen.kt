@@ -35,10 +35,9 @@ import com.linc.audiowaveform.AudioWaveform
 import com.linc.audiowaveform.infiniteVerticalGradient
 import com.linc.audiowaveform.model.AmplitudeType
 import com.linc.audiowaveform.model.WaveformAlignment
-import com.theimpartialai.speechScribe.R
 
 @Composable
-fun VoiceRecorderScreen(
+fun RecordingScreen(
     uiState: VoiceRecorderUiState,
     amplitudes: List<Int>,
     onStartRecording: () -> Unit,
@@ -205,8 +204,8 @@ private fun RecordingButtons(
 
 @Preview(showBackground = true)
 @Composable
-fun VoiceRecorderScreenPreview() {
-    VoiceRecorderScreen(
+fun RecordingScreenPreview() {
+    RecordingScreen(
         uiState = VoiceRecorderUiState(),
         amplitudes = listOf(1, 2, 3, 4, 5),
         onStartRecording = {},
