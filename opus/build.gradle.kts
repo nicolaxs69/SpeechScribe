@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.opus"
+    namespace = "com.theimpartialai.opus"
     compileSdk = 34
 
     defaultConfig {

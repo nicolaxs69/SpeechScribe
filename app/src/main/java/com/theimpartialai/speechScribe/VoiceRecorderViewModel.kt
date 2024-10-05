@@ -1,4 +1,4 @@
-package com.example.speechScribe
+package com.theimpartialai.speechScribe
 
 import android.content.Context
 import android.util.Log
@@ -9,8 +9,8 @@ import com.example.opus.Constants.Channels
 import com.example.opus.Constants.FrameSize
 import com.example.opus.Constants.SampleRate
 import com.example.opus.Opus
-import com.example.speechScribe.opusEncoding.utils.ControllerAudio
-import com.example.speechScribe.opusEncoding.utils.FileUtils
+import com.theimpartialai.speechScribe.opusEncoding.utils.ControllerAudio
+import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

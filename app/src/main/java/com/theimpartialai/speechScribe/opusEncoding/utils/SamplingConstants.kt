@@ -1,4 +1,4 @@
-package com.example.speechScribe.opusEncoding.utils
+package com.theimpartialai.speechScribe.opusEncoding.utils
 
 import android.content.Context
 import android.os.Environment

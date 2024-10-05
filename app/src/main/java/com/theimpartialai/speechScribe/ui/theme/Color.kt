@@ -1,4 +1,4 @@
-package com.example.speechScribe.ui.theme
+package com.theimpartialai.speechScribe.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

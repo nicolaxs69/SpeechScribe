@@ -1,4 +1,4 @@
-package com.example.speechScribe.opusEncoding
+package com.theimpartialai.speechScribe.opusEncoding
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -14,9 +14,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.example.speechScribe.VoiceRecorderScreen
-import com.example.speechScribe.VoiceRecorderViewModel
-import com.example.speechScribe.ui.theme.SpeechScribeTheme
+import com.theimpartialai.speechScribe.VoiceRecorderScreen
+import com.theimpartialai.speechScribe.VoiceRecorderViewModel
+import com.theimpartialai.speechScribe.ui.theme.SpeechScribeTheme
 
 class OpusEncoderActivity : AppCompatActivity() {
     private val voiceRecorderViewModel: VoiceRecorderViewModel by viewModels()

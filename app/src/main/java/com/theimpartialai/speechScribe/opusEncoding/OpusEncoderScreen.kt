@@ -1,4 +1,4 @@
-package com.example.speechScribe.opusEncoding
+package com.theimpartialai.speechScribe.opusEncoding
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween

@@ -1,14 +1,15 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.google.services)
 }
 
 android {
-    namespace = "com.example.speechScribe"
+    namespace = "com.theimpartialai.speechScribe"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.speechScribe"
+        applicationId = "com.theimpartialai.speechScribe"
         minSdk = 31
         targetSdk = 34
         versionCode = 1
@@ -81,4 +82,8 @@ dependencies {
     implementation(project(":opus"))
     implementation(libs.gagravarr.vorbis.java.core)
     implementation(libs.compose.audiowaveform)
+
+    // Firebase dependencies
+    implementation("com.google.firebase:firebase-analytics")
+    implementation(libs.firebase.bom)
 }

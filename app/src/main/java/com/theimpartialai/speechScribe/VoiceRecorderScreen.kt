@@ -1,4 +1,4 @@
-package com.example.speechScribe
+package com.theimpartialai.speechScribe
 
 import TimerComponent
 import androidx.compose.animation.core.LinearEasing
@@ -29,12 +29,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.speechScribe.ui.theme.Blue
-import com.example.speechScribe.ui.theme.LightGray
+import com.theimpartialai.speechScribe.ui.theme.Blue
+import com.theimpartialai.speechScribe.ui.theme.LightGray
 import com.linc.audiowaveform.AudioWaveform
 import com.linc.audiowaveform.infiniteVerticalGradient
 import com.linc.audiowaveform.model.AmplitudeType
 import com.linc.audiowaveform.model.WaveformAlignment
+import com.theimpartialai.speechScribe.R
 
 @Composable
 fun VoiceRecorderScreen(

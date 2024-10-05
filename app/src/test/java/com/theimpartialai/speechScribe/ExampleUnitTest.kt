@@ -1,4 +1,4 @@
-package com.example.speechScribe
+package com.theimpartialai.speechScribe
 
 import org.junit.Test
 
