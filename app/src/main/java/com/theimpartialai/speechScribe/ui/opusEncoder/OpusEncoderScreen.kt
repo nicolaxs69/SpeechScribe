@@ -1,4 +1,4 @@
-package com.theimpartialai.speechScribe.opusEncoding
+package com.theimpartialai.speechScribe.ui.opusEncoder
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -28,6 +28,7 @@ import com.linc.audiowaveform.AudioWaveform
 import com.linc.audiowaveform.infiniteVerticalGradient
 import com.linc.audiowaveform.model.AmplitudeType
 import com.linc.audiowaveform.model.WaveformAlignment
+import com.theimpartialai.speechScribe.ui.recording.AudioMode
 
 private enum class SamplingRate(val value: String, val sampleRate: Constants.SampleRate) {
     RATE_8K("8000", Constants.SampleRate._8000()),

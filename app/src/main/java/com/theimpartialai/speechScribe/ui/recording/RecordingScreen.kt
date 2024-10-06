@@ -1,4 +1,4 @@
-package com.theimpartialai.speechScribe
+package com.theimpartialai.speechScribe.ui.recording
 
 import TimerComponent
 import androidx.compose.animation.core.LinearEasing
@@ -35,6 +35,7 @@ import com.linc.audiowaveform.AudioWaveform
 import com.linc.audiowaveform.infiniteVerticalGradient
 import com.linc.audiowaveform.model.AmplitudeType
 import com.linc.audiowaveform.model.WaveformAlignment
+import com.theimpartialai.speechScribe.R
 
 @Composable
 fun RecordingScreen(

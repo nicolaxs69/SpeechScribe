@@ -1,4 +1,4 @@
-package com.theimpartialai.speechScribe.opusEncoding
+package com.theimpartialai.speechScribe.ui.opusEncoder
 
 import android.content.Context
 import android.util.Log
@@ -11,6 +11,7 @@ import com.example.opus.Constants.SampleRate
 import com.example.opus.Opus
 import com.theimpartialai.speechScribe.opusEncoding.utils.ControllerAudio
 import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils
+import com.theimpartialai.speechScribe.ui.recording.AudioMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

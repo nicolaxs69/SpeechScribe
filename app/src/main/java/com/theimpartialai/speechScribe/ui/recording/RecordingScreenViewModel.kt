@@ -1,4 +1,4 @@
-package com.theimpartialai.speechScribe
+package com.theimpartialai.speechScribe.ui.recording
 
 import android.content.Context
 import android.util.Log

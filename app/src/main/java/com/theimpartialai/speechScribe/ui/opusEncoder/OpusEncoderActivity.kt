@@ -1,4 +1,4 @@
-package com.theimpartialai.speechScribe.opusEncoding
+package com.theimpartialai.speechScribe.ui.opusEncoder
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -14,8 +14,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.theimpartialai.speechScribe.RecordingScreen
-import com.theimpartialai.speechScribe.RecordingScreenViewModel
+import com.theimpartialai.speechScribe.ui.recording.RecordingScreen
+import com.theimpartialai.speechScribe.ui.recording.RecordingScreenViewModel
 import com.theimpartialai.speechScribe.ui.theme.SpeechScribeTheme
 
 class OpusEncoderActivity : AppCompatActivity() {

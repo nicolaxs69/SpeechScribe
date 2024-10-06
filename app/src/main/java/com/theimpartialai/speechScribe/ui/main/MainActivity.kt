@@ -1,4 +1,4 @@
-package com.theimpartialai.speechScribe
+package com.theimpartialai.speechScribe.ui.main
 
 import android.Manifest
 import android.os.Bundle
