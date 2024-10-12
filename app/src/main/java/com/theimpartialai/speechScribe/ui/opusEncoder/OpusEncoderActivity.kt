@@ -5,17 +5,26 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.theimpartialai.speechScribe.ui.recording.RecordingScreen
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
+import com.theimpartialai.speechScribe.ui.components.navigation.BottomNavigationBar
+import com.theimpartialai.speechScribe.ui.components.navigation.NavigationGraph
 import com.theimpartialai.speechScribe.ui.recording.RecordingScreenViewModel
+import com.theimpartialai.speechScribe.ui.theme.DarkBlue
 import com.theimpartialai.speechScribe.ui.theme.SpeechScribeTheme
 
 class OpusEncoderActivity : AppCompatActivity() {
@@ -35,19 +44,36 @@ class OpusEncoderActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val amplitudes by voiceRecorderViewModel.amplitudes.collectAsState()
-            val recordingState by voiceRecorderViewModel.uiState.collectAsState()
             SpeechScribeTheme {
-                Log.d("OpusEncoderActivity", "onCreate: ${amplitudes.size}")
-                RecordingScreen(
-                    uiState = recordingState,
-                    amplitudes = amplitudes,
-                    onStartRecording = { checkAndRequestPermissions() },
-                    onPauseRecording = { voiceRecorderViewModel.pauseRecording() },
-                    onResumeRecording = { voiceRecorderViewModel.resumeRecording(this) },
-                    onStopRecording = { voiceRecorderViewModel.stopRecording() },
-                    onDiscardRecording = { voiceRecorderViewModel.discardRecording() }
-                )
+                val navController: NavHostController = rememberNavController()
+                var buttonVisible by remember { mutableStateOf(true) }
+
+                Scaffold(
+                    containerColor = DarkBlue,
+                    bottomBar = {
+                        if (buttonVisible) {
+                            BottomNavigationBar(
+                                modifier = Modifier,
+                                navController = navController,
+                                state = buttonVisible
+                            )
+                        }
+                    }
+                ) { paddingValues ->
+                    Box(
+                        modifier = Modifier
+                            .padding(paddingValues)
+                    ) {
+                        NavigationGraph(
+                            navController = navController,
+                            recordingScreenViewModel = voiceRecorderViewModel,
+                            checkAndRequestPermissions = { checkAndRequestPermissions() },
+                            onBottomBarVisibilityChanged = { isVisible ->
+                                buttonVisible = isVisible
+                            },
+                        )
+                    }
+                }
             }
         }
     }

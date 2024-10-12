@@ -82,8 +82,9 @@ dependencies {
     implementation(project(":opus"))
     implementation(libs.gagravarr.vorbis.java.core)
     implementation(libs.compose.audiowaveform)
+    implementation(libs.androidx.navigation.compose)
 
     // Firebase dependencies
     implementation(libs.firebase.analytics)
-    implementation(libs.firebase.bom)
+    implementation(platform(libs.firebase.bom))
 }
