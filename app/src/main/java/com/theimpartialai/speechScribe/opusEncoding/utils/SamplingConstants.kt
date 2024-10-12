@@ -12,13 +12,18 @@ object FileUtils {
     fun createOutputFile(context: Context): Pair<File, FileOutputStream> {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
         val fileName = "opus_recording_$timestamp.opus"
-        val outputDir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC)
+        val outputDir = getOutputDirectory(context)
+        val file = File(outputDir, fileName)
+        val outputStream = FileOutputStream(file)
+        return Pair(file, outputStream)
+    }
+
+    fun getOutputDirectory(context: Context): File {
+        val outputDir = context.getExternalFilesDir(Environment.DIRECTORY_RECORDINGS)
             ?: throw IllegalStateException("External storage is not available")
         if (!outputDir.exists()) {
             outputDir.mkdirs()
         }
-        val file = File(outputDir, fileName)
-        val outputStream = FileOutputStream(file)
-        return Pair(file, outputStream)
+        return outputDir
     }
 }
