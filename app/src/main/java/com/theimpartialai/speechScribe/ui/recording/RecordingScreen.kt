@@ -1,6 +1,7 @@
 package com.theimpartialai.speechScribe.ui.recording
 
 import TimerComponent
+import android.content.Context
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -42,12 +44,11 @@ fun RecordingScreen(
     uiState: VoiceRecorderUiState,
     amplitudes: List<Int>,
     onStartRecording: () -> Unit,
-    onResumeRecording: () -> Unit,
+    onResumeRecording: (Context) -> Unit,
     onPauseRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onDiscardRecording: () -> Unit
 ) {
-
     val animatedGradientBrush = Brush.infiniteVerticalGradient(
         colors = listOf(Color.Blue, Color.Green),
         animation = tween(durationMillis = ANIMATION_DURATION, easing = LinearEasing),
@@ -101,11 +102,12 @@ private fun RecordingButtons(
     modifier: Modifier,
     uiState: VoiceRecorderUiState,
     onPauseRecording: () -> Unit,
-    onResumeRecording: () -> Unit,
+    onResumeRecording: (Context) -> Unit,
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onDiscardRecording: () -> Unit
 ) {
+    val context = LocalContext.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -156,7 +158,7 @@ private fun RecordingButtons(
                     }
 
                     is RecordingState.Paused -> {
-                        onResumeRecording()
+                        onResumeRecording(context)
                     }
                 }
             },

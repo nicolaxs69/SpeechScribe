@@ -24,11 +24,13 @@ import androidx.navigation.compose.rememberNavController
 import com.theimpartialai.speechScribe.ui.components.navigation.BottomNavigationBar
 import com.theimpartialai.speechScribe.ui.components.navigation.NavigationGraph
 import com.theimpartialai.speechScribe.ui.recording.RecordingScreenViewModel
+import com.theimpartialai.speechScribe.ui.savedRecording.SavedRecordingsViewModel
 import com.theimpartialai.speechScribe.ui.theme.DarkBlue
 import com.theimpartialai.speechScribe.ui.theme.SpeechScribeTheme
 
 class OpusEncoderActivity : AppCompatActivity() {
     private val voiceRecorderViewModel: RecordingScreenViewModel by viewModels()
+    private val savedRecordingsViewModel: SavedRecordingsViewModel by viewModels()
 
     private val PERMISSIONS_REQUESTED_CODE = 123
 
@@ -67,6 +69,7 @@ class OpusEncoderActivity : AppCompatActivity() {
                         NavigationGraph(
                             navController = navController,
                             recordingScreenViewModel = voiceRecorderViewModel,
+                            savedRecordingsViewModel = savedRecordingsViewModel,
                             checkAndRequestPermissions = { checkAndRequestPermissions() },
                             onBottomBarVisibilityChanged = { isVisible ->
                                 buttonVisible = isVisible
