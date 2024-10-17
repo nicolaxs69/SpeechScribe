@@ -9,6 +9,7 @@ import com.example.opus.Constants.Channels
 import com.example.opus.Constants.FrameSize
 import com.example.opus.Constants.SampleRate
 import com.example.opus.Opus
+import com.theimpartialai.speechScribe.model.AudioRecording
 import com.theimpartialai.speechScribe.opusEncoding.utils.ControllerAudio
 import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +40,9 @@ class RecordingScreenViewModel : ViewModel() {
         private const val MAX_AMPLITUDES = 300
     }
 
+    private var recordingStartTime: Long = 0L
+    private var recordingEndTime: Long = 0L
+
     private val _uiState = MutableStateFlow(VoiceRecorderUiState())
     val uiState: StateFlow<VoiceRecorderUiState> = _uiState.asStateFlow()
 
@@ -61,6 +65,7 @@ class RecordingScreenViewModel : ViewModel() {
     +      */
 
     fun startRecording(context: Context) {
+        recordingStartTime = System.currentTimeMillis()
         _uiState.update { it.copy(recordingState = RecordingState.Recording) }
         startTimer()
 
@@ -68,11 +73,9 @@ class RecordingScreenViewModel : ViewModel() {
             try {
                 _amplitudes.update { emptyList() } // Clear the list of amplitudes
                 initializeRecording(context)
-
                 while (_uiState.value.recordingState is RecordingState.Recording) {
                     processAudioFrame()
                 }
-
             } catch (e: Exception) {
                 Log.e(TAG, "IO Error starting recording: ${e.message}", e)
             }
@@ -96,6 +99,7 @@ class RecordingScreenViewModel : ViewModel() {
     }
 
     fun stopRecording() {
+        recordingEndTime = System.currentTimeMillis()
         timerJob?.cancel()
         timerJob = null
         _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
@@ -103,6 +107,7 @@ class RecordingScreenViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 releaseResources()
+                saveRecording()
                 _amplitudes.update { emptyList() } // Clear the list of amplitudes
                 Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
             } catch (e: Exception) {
@@ -118,8 +123,9 @@ class RecordingScreenViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 ControllerAudio.stopRecord()  // Stop capturing audio frames
+                // Update recordingEndTime to account for the pause duration
+                recordingEndTime = System.currentTimeMillis()
                 Log.d(TAG, "Recording paused")
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error pausing recording", e)
             }
@@ -127,6 +133,10 @@ class RecordingScreenViewModel : ViewModel() {
     }
 
     fun resumeRecording(context: Context) {
+        // Adjust recordingStartTime to exclude the paused duration
+        val pauseDuration = System.currentTimeMillis() - recordingEndTime
+        recordingStartTime += pauseDuration // Extend the start time by the paused duration
+
         startTimer()
         _uiState.update { it.copy(recordingState = RecordingState.Recording) }
 
@@ -146,6 +156,8 @@ class RecordingScreenViewModel : ViewModel() {
         timerJob?.cancel()
         timerJob = null
         _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
+        recordingStartTime = 0L
+        recordingEndTime = 0L
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -167,6 +179,10 @@ class RecordingScreenViewModel : ViewModel() {
                 Log.e(TAG, "Error discarding recording", e)
             }
         }
+    }
+
+    private fun saveRecording() {
+        val duration = recordingEndTime - recordingStartTime // Duration in milliseconds
     }
 
     /**

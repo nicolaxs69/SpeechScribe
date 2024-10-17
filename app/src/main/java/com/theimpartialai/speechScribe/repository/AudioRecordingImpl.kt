@@ -20,7 +20,7 @@ class AudioRecordingImpl : AudioRecordingInterface {
                 fileName = file.nameWithoutExtension,
                 filePath = file.absolutePath,
                 fileSize = file.length().toDouble(),
-                duration = getAudioDuration(file),
+                duration = 0,
                 timeStamp = file.lastModified()
             )
         }
