@@ -31,6 +31,7 @@ fun NavigationGraph(
 
             val context = LocalContext.current
             val recordings by savedRecordingsViewModel.recordings.collectAsState()
+                val playBackState = savedRecordingsViewModel.playBackState
 
             LaunchedEffect(Unit) {
                 savedRecordingsViewModel.loadRecordings(context)
@@ -39,8 +40,12 @@ fun NavigationGraph(
             SavedRecordingsScreen(
                 recordings = recordings,
                 onDelete = { savedRecordingsViewModel.deleteRecording(it) },
-                onPlay = {},
-                onMoreOptions = {}
+                onTogglePlayback = { recording, isPaused ->
+                    savedRecordingsViewModel.playRecording(context, recording, isPaused)
+//                    savedRecordingsViewModel.updatePlaybackState(isPaused)
+                },
+                onMoreOptions = {},
+                playBackState = playBackState
             )
         }
 

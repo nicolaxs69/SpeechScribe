@@ -15,6 +15,9 @@ class SavedRecordingsViewModel : ViewModel() {
     private val _recordings = MutableStateFlow<List<AudioRecording>>(emptyList())
     val recordings: StateFlow<List<AudioRecording>> get() = _recordings
 
+    private val _playbackState = MutableStateFlow<PlayBackState>(PlayBackState.Pause)
+    val playBackState: StateFlow<PlayBackState> get() = _playbackState
+
     fun loadRecordings(context: Context) {
         viewModelScope.launch {
             val recordings = audioRepository.loadRecordings(context)
@@ -31,4 +34,17 @@ class SavedRecordingsViewModel : ViewModel() {
             _recordings.value = updatedList
         }
     }
+
+    fun playRecording(context: Context, recording: AudioRecording, isPaused: PlayBackState) {
+        viewModelScope.launch {
+            audioRepository.togglePlayback(context, recording, isPaused) { newPlayBackState ->
+                _playbackState.value = newPlayBackState
+            }
+        }
+    }
+}
+
+sealed class PlayBackState {
+    data object Play : PlayBackState()
+    data object Pause : PlayBackState()
 }
