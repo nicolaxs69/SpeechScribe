@@ -38,27 +38,6 @@ class SavedRecordingsViewModel : ViewModel() {
         }
     }
 
-//    fun playRecording(context: Context, recording: AudioRecording, isPaused: PlayBackState) {
-//        viewModelScope.launch {
-//            audioRepository.togglePlayback(context, recording, isPaused) { newPlayBackState ->
-//                _playbackState.value = newPlayBackState
-//            }
-//        }
-//    }
-
-    fun playRecording3(context: Context, recording: AudioRecording, isPaused: PlayBackState) {
-        viewModelScope.launch {
-            audioRepository.togglePlayback(context, recording, isPaused) { newPlayBackState ->
-                _playbackState.value = newPlayBackState
-                if (newPlayBackState == PlayBackState.Play) {
-                    _currentlyPlayingItem.value = recording
-                } else if (newPlayBackState == PlayBackState.Pause) {
-                    _currentlyPlayingItem.value = null
-                }
-            }
-        }
-    }
-
     fun playRecording(context: Context, recording: AudioRecording, playBackState: PlayBackState) {
         viewModelScope.launch {
             audioRepository.togglePlayback(context, recording, playBackState) { newPlayBackState ->

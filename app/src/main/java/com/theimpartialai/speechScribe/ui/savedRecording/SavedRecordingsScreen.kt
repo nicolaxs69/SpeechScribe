@@ -173,6 +173,7 @@ fun RecordingItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // TODO: Uncomment the following lines when I figure out how to format the duration for Opus files
 //                Text(
 //                    text = recording.formattedDuration,
 //                    style = MaterialTheme.typography.bodyMedium,
