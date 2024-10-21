@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +47,9 @@ fun SavedRecordingsScreen(
     onDelete: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording, PlayBackState) -> Unit,
     onMoreOptions: (AudioRecording) -> Unit,
+    currentlyPlayingItem: AudioRecording?,
+    onPlaybackComplete: () -> Unit,
+
     playBackState: StateFlow<PlayBackState>
 ) {
     val currentPlaybackState by playBackState.collectAsState()
@@ -62,7 +64,9 @@ fun SavedRecordingsScreen(
             onDelete = onDelete,
             onTogglePlayback = onTogglePlayback,
             onMoreOptions = onMoreOptions,
-            currentPlaybackState = currentPlaybackState
+            currentPlaybackState = currentPlaybackState,
+            currentlyPlayingItem = currentlyPlayingItem,
+            onPlaybackComplete = onPlaybackComplete
         )
     }
 }
@@ -73,7 +77,9 @@ fun RecordingList(
     onDelete: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording, PlayBackState) -> Unit,
     onMoreOptions: (AudioRecording) -> Unit,
-    currentPlaybackState: PlayBackState
+    currentPlaybackState: PlayBackState,
+    currentlyPlayingItem: AudioRecording?,
+    onPlaybackComplete: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 4.dp)
@@ -86,7 +92,9 @@ fun RecordingList(
                     onTogglePlayback(recording, isPaused)
                 },
                 onMoreOptions = { onMoreOptions(recording) },
-                currentPlaybackState = currentPlaybackState
+                currentPlaybackState = currentPlaybackState,
+                isCurrentlyPlaying = recording == currentlyPlayingItem,
+                onPlaybackComplete = onPlaybackComplete
             )
         }
     }
@@ -98,7 +106,9 @@ fun RecordingItem(
     onDelete: () -> Unit,
     onTogglePlayback: (PlayBackState) -> Unit,
     onMoreOptions: () -> Unit,
-    currentPlaybackState: PlayBackState
+    currentPlaybackState: PlayBackState,
+    isCurrentlyPlaying: Boolean,
+    onPlaybackComplete: () -> Unit
 ) {
     val showMenu = remember { mutableStateOf(false) }
 
@@ -114,12 +124,16 @@ fun RecordingItem(
             )
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
-
     ) {
-        var playbackState by remember { mutableStateOf(currentPlaybackState) }
+        var playbackState by remember(currentPlaybackState, isCurrentlyPlaying) {
+            mutableStateOf(if (isCurrentlyPlaying) PlayBackState.Play else PlayBackState.Pause)
+        }
 
-        LaunchedEffect(currentPlaybackState) {
-            playbackState = currentPlaybackState
+        LaunchedEffect(isCurrentlyPlaying) {
+            if (!isCurrentlyPlaying) {
+                playbackState = PlayBackState.Pause
+                onPlaybackComplete()
+            }
         }
 
         Box(
@@ -141,7 +155,9 @@ fun RecordingItem(
                     ImageVector.vectorResource(id = R.drawable.pause_icon)
                 } else {
                     ImageVector.vectorResource(id = R.drawable.play_icon)
-                }, tint = Color.Red, contentDescription = "Waveform"
+                },
+                tint = Color.Red,
+                contentDescription = "Waveform"
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
@@ -157,16 +173,16 @@ fun RecordingItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = recording.formattedDuration,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.LightGray
-                )
-                Text(
-                    text = " • ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.LightGray
-                )
+//                Text(
+//                    text = recording.formattedDuration,
+//                    style = MaterialTheme.typography.bodyMedium,
+//                    color = Color.LightGray
+//                )
+//                Text(
+//                    text = " • ",
+//                    style = MaterialTheme.typography.bodyMedium,
+//                    color = Color.LightGray
+//                )
                 Text(
                     text = recording.formattedFileSize,
                     style = MaterialTheme.typography.bodyMedium,
@@ -208,6 +224,8 @@ fun SavedRecordingsScreenPreview() {
         onDelete = {},
         onTogglePlayback = { _, _ -> },
         onMoreOptions = {},
-        playBackState = MutableStateFlow(PlayBackState.Pause)
+        playBackState = MutableStateFlow(PlayBackState.Pause),
+        currentlyPlayingItem = null,
+        onPlaybackComplete = {}
     )
 }

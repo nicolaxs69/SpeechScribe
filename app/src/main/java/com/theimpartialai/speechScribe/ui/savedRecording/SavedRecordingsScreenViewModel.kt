@@ -18,6 +18,9 @@ class SavedRecordingsViewModel : ViewModel() {
     private val _playbackState = MutableStateFlow<PlayBackState>(PlayBackState.Pause)
     val playBackState: StateFlow<PlayBackState> get() = _playbackState
 
+    private val _currentlyPlayingItem = MutableStateFlow<AudioRecording?>(null)
+    val currentlyPlayingItem: StateFlow<AudioRecording?> = _currentlyPlayingItem
+
     fun loadRecordings(context: Context) {
         viewModelScope.launch {
             val recordings = audioRepository.loadRecordings(context)
@@ -35,12 +38,43 @@ class SavedRecordingsViewModel : ViewModel() {
         }
     }
 
-    fun playRecording(context: Context, recording: AudioRecording, isPaused: PlayBackState) {
+//    fun playRecording(context: Context, recording: AudioRecording, isPaused: PlayBackState) {
+//        viewModelScope.launch {
+//            audioRepository.togglePlayback(context, recording, isPaused) { newPlayBackState ->
+//                _playbackState.value = newPlayBackState
+//            }
+//        }
+//    }
+
+    fun playRecording3(context: Context, recording: AudioRecording, isPaused: PlayBackState) {
         viewModelScope.launch {
             audioRepository.togglePlayback(context, recording, isPaused) { newPlayBackState ->
                 _playbackState.value = newPlayBackState
+                if (newPlayBackState == PlayBackState.Play) {
+                    _currentlyPlayingItem.value = recording
+                } else if (newPlayBackState == PlayBackState.Pause) {
+                    _currentlyPlayingItem.value = null
+                }
             }
         }
+    }
+
+    fun playRecording(context: Context, recording: AudioRecording, playBackState: PlayBackState) {
+        viewModelScope.launch {
+            audioRepository.togglePlayback(context, recording, playBackState) { newPlayBackState ->
+                _playbackState.value = newPlayBackState
+                if (newPlayBackState == PlayBackState.Play) {
+                    _currentlyPlayingItem.value = recording
+                } else {
+                    _currentlyPlayingItem.value = null
+                }
+            }
+        }
+    }
+
+    fun onPlaybackComplete() {
+        _playbackState.value = PlayBackState.Pause
+        _currentlyPlayingItem.value = null
     }
 }
 

@@ -18,6 +18,8 @@ class AudioRecordingImpl : AudioRecordingInterface {
     private var pauseLength = 0
     private var playbackIsFinished = false
 
+    private val playbackPositions = mutableMapOf<String, Int>()
+
     override suspend fun loadRecordings(context: Context): List<AudioRecording> {
         val outputDir = getOutputDirectory(context)
         val recordings = getRecordingsFromDirectory(outputDir)
@@ -72,11 +74,11 @@ class AudioRecordingImpl : AudioRecordingInterface {
                     setDataSource(context, Uri.fromFile(File(recording.filePath)))
                     prepare()
                     setOnCompletionListener {
-                        pauseLength = 0
+                        playbackPositions[recording.filePath] = 0
                         playbackIsFinished = true
                         mediaPlayer?.release()
                         mediaPlayer = null
-                        onPlayBackComplete(PlayBackState.Play)
+                        onPlayBackComplete(PlayBackState.Pause)
                     }
                 }
                 currentRecording = recording
@@ -85,19 +87,18 @@ class AudioRecordingImpl : AudioRecordingInterface {
             when (playBackState) {
                 is PlayBackState.Play -> {
                     mediaPlayer?.apply {
-                        seekTo(pauseLength)
+                        seekTo(playbackPositions[recording.filePath] ?: 0)
                         start()
+                        onPlayBackComplete(PlayBackState.Play)
                     }
                 }
 
                 is PlayBackState.Pause -> {
                     mediaPlayer?.apply {
-                        pauseLength = if (playbackIsFinished) {
-                            0
-                        } else {
-                            currentPosition
-                        }
+                        playbackPositions[recording.filePath] =
+                            if (playbackIsFinished) 0 else currentPosition
                         pause()
+                        onPlayBackComplete(PlayBackState.Pause)
                     }
                 }
             }
