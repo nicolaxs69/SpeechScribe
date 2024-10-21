@@ -2,7 +2,6 @@ package com.theimpartialai.speechScribe.ui.savedRecording
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,8 +22,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -35,14 +38,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.theimpartialai.speechScribe.R
 import com.theimpartialai.speechScribe.model.AudioRecording
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun SavedRecordingsScreen(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
-    onPlay: (AudioRecording) -> Unit,
-    onMoreOptions: (AudioRecording) -> Unit
+    onTogglePlayback: (AudioRecording, PlayBackState) -> Unit,
+    onMoreOptions: (AudioRecording) -> Unit,
+    currentlyPlayingItem: AudioRecording?,
+    onPlaybackComplete: () -> Unit,
+
+    playBackState: StateFlow<PlayBackState>
 ) {
+    val currentPlaybackState by playBackState.collectAsState()
     Column(
         modifier = Modifier
             .padding(top = 20.dp)
@@ -52,8 +62,11 @@ fun SavedRecordingsScreen(
         RecordingList(
             recordings = recordings,
             onDelete = onDelete,
-            onPlay = onPlay,
-            onMoreOptions = onMoreOptions
+            onTogglePlayback = onTogglePlayback,
+            onMoreOptions = onMoreOptions,
+            currentPlaybackState = currentPlaybackState,
+            currentlyPlayingItem = currentlyPlayingItem,
+            onPlaybackComplete = onPlaybackComplete
         )
     }
 }
@@ -62,19 +75,26 @@ fun SavedRecordingsScreen(
 fun RecordingList(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
-    onPlay: (AudioRecording) -> Unit,
-    onMoreOptions: (AudioRecording) -> Unit
+    onTogglePlayback: (AudioRecording, PlayBackState) -> Unit,
+    onMoreOptions: (AudioRecording) -> Unit,
+    currentPlaybackState: PlayBackState,
+    currentlyPlayingItem: AudioRecording?,
+    onPlaybackComplete: () -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier
-            .padding(start = 8.dp, end = 8.dp, top = 4.dp)
+        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 4.dp)
     ) {
         items(recordings) { recording ->
             RecordingItem(
                 recording = recording,
                 onDelete = { onDelete(recording) },
-                onPlay = { onPlay(recording) },
-                onMoreOptions = { onMoreOptions(recording) }
+                onTogglePlayback = { isPaused ->
+                    onTogglePlayback(recording, isPaused)
+                },
+                onMoreOptions = { onMoreOptions(recording) },
+                currentPlaybackState = currentPlaybackState,
+                isCurrentlyPlaying = recording == currentlyPlayingItem,
+                onPlaybackComplete = onPlaybackComplete
             )
         }
     }
@@ -84,8 +104,11 @@ fun RecordingList(
 fun RecordingItem(
     recording: AudioRecording,
     onDelete: () -> Unit,
-    onPlay: () -> Unit,
-    onMoreOptions: () -> Unit
+    onTogglePlayback: (PlayBackState) -> Unit,
+    onMoreOptions: () -> Unit,
+    currentPlaybackState: PlayBackState,
+    isCurrentlyPlaying: Boolean,
+    onPlaybackComplete: () -> Unit
 ) {
     val showMenu = remember { mutableStateOf(false) }
 
@@ -97,22 +120,42 @@ fun RecordingItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                brush = Brush.horizontalGradient(gradientColors),
-                shape = MaterialTheme.shapes.small
+                brush = Brush.horizontalGradient(gradientColors), shape = MaterialTheme.shapes.small
             )
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        var playbackState by remember(currentPlaybackState, isCurrentlyPlaying) {
+            mutableStateOf(if (isCurrentlyPlaying) PlayBackState.Play else PlayBackState.Pause)
+        }
+
+        LaunchedEffect(isCurrentlyPlaying) {
+            if (!isCurrentlyPlaying) {
+                playbackState = PlayBackState.Pause
+                onPlaybackComplete()
+            }
+        }
+
         Box(
-            modifier = Modifier
-                .background(Color(0xFF1A1A1A), MaterialTheme.shapes.small)
+            modifier = Modifier.background(Color(0xFF1A1A1A), MaterialTheme.shapes.small),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 modifier = Modifier
-                    .padding(1.dp)
-                    .size(45.dp)
-                    .clickable { onPlay() },
-                imageVector = ImageVector.vectorResource(id = R.drawable.waveform_icon),
+                    .padding(8.dp)
+                    .size(30.dp)
+                    .clickable {
+                        playbackState = if (playbackState == PlayBackState.Play) {
+                            PlayBackState.Pause
+                        } else {
+                            PlayBackState.Play
+                        }
+                        onTogglePlayback(playbackState)
+                    }, imageVector = if (playbackState == PlayBackState.Play) {
+                    ImageVector.vectorResource(id = R.drawable.pause_icon)
+                } else {
+                    ImageVector.vectorResource(id = R.drawable.play_icon)
+                },
                 tint = Color.Red,
                 contentDescription = "Waveform"
             )
@@ -130,16 +173,17 @@ fun RecordingItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = recording.formattedDuration,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.LightGray
-                )
-                Text(
-                    text = " • ",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.LightGray
-                )
+                // TODO: Uncomment the following lines when I figure out how to format the duration for Opus files
+//                Text(
+//                    text = recording.formattedDuration,
+//                    style = MaterialTheme.typography.bodyMedium,
+//                    color = Color.LightGray
+//                )
+//                Text(
+//                    text = " • ",
+//                    style = MaterialTheme.typography.bodyMedium,
+//                    color = Color.LightGray
+//                )
                 Text(
                     text = recording.formattedFileSize,
                     style = MaterialTheme.typography.bodyMedium,
@@ -155,17 +199,11 @@ fun RecordingItem(
             tint = Color.LightGray,
             contentDescription = "More options"
         )
-        DropdownMenu(
-            expanded = showMenu.value,
-            onDismissRequest = { showMenu.value = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Delete") },
-                onClick = {
-                    onDelete()
-                    showMenu.value = false
-                }
-            )
+        DropdownMenu(expanded = showMenu.value, onDismissRequest = { showMenu.value = false }) {
+            DropdownMenuItem(text = { Text("Delete") }, onClick = {
+                onDelete()
+                showMenu.value = false
+            })
         }
     }
     Spacer(modifier = Modifier.height(8.dp))
@@ -185,7 +223,10 @@ fun SavedRecordingsScreenPreview() {
             )
         },
         onDelete = {},
-        onPlay = {},
-        onMoreOptions = {}
+        onTogglePlayback = { _, _ -> },
+        onMoreOptions = {},
+        playBackState = MutableStateFlow(PlayBackState.Pause),
+        currentlyPlayingItem = null,
+        onPlaybackComplete = {}
     )
 }
