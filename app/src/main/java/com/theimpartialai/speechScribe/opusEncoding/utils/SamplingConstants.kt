@@ -11,7 +11,7 @@ import java.util.Locale
 object FileUtils {
     fun createOutputFile(context: Context): Pair<File, FileOutputStream> {
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "opus_recording_$timestamp.opus"
+        val fileName = "opus_recording_$timestamp.wav"
         val outputDir = getOutputDirectory(context)
         val file = File(outputDir, fileName)
         val outputStream = FileOutputStream(file)

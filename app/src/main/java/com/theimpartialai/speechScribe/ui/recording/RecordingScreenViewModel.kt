@@ -1,17 +1,11 @@
 package com.theimpartialai.speechScribe.ui.recording
 
 import android.content.Context
-import android.util.Log
+import android.media.AudioFormat
+import android.media.AudioRecord
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.opus.Constants.Application
-import com.example.opus.Constants.Channels
-import com.example.opus.Constants.FrameSize
-import com.example.opus.Constants.SampleRate
-import com.example.opus.Opus
-import com.theimpartialai.speechScribe.model.AudioRecording
-import com.theimpartialai.speechScribe.opusEncoding.utils.ControllerAudio
-import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils
+import com.theimpartialai.speechScribe.repository.AudioRecordingImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -21,13 +15,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.gagravarr.opus.OpusAudioData
-import org.gagravarr.opus.OpusFile
-import org.gagravarr.opus.OpusInfo
-import org.gagravarr.opus.OpusTags
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import kotlin.math.sqrt
 
 class RecordingScreenViewModel : ViewModel() {
@@ -36,12 +25,22 @@ class RecordingScreenViewModel : ViewModel() {
         private const val AMPLITUDE_THRESHOLD = 40
         private const val BASELINE_AMPLITUDE = 10
         private const val SMOOTHING_WINDOW_SIZE = 5
-        private const val BYTES_PER_SAMPLE = 2 // For 16-bit audio
         private const val MAX_AMPLITUDES = 300
+
+        // Audio configuration
+        private const val SAMPLE_RATE = 16000
+        private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
+        private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
+        private const val BUFFER_SIZE = 2048
     }
 
     private var recordingStartTime: Long = 0L
     private var recordingEndTime: Long = 0L
+    private var audioRecord: AudioRecord? = null
+    private var currentOutputFile: File? = null
+    private var fileOutputStream: FileOutputStream? = null
+    private var recordingJob: Job? = null
+    private var timerJob: Job? = null
 
     private val _uiState = MutableStateFlow(VoiceRecorderUiState())
     val uiState: StateFlow<VoiceRecorderUiState> = _uiState.asStateFlow()
@@ -49,14 +48,9 @@ class RecordingScreenViewModel : ViewModel() {
     private val _amplitudes = MutableStateFlow<List<Int>>(emptyList())
     val amplitudes: StateFlow<List<Int>> = _amplitudes.asStateFlow()
 
-    private val codec = Opus()
-    private val application = Application.audio()
-    private var currentOutputFile: File? = null
-    private var fileOutputStream: FileOutputStream? = null
-
     private val amplitudeBuffer = mutableListOf<Int>()
 
-    private var timerJob: Job? = null
+    private val audioRepository = AudioRecordingImpl()
 
     /**
     +      * Starts the recording process by initializing the necessary components and updating the UI state.
@@ -66,151 +60,90 @@ class RecordingScreenViewModel : ViewModel() {
 
     fun startRecording(context: Context) {
         recordingStartTime = System.currentTimeMillis()
-        _uiState.update { it.copy(recordingState = RecordingState.Recording) }
-        startTimer()
+        viewModelScope.launch {
+            audioRepository.startRecording(context)
+            _uiState.update { it.copy(recordingState = RecordingState.Recording) }
+            startTimer()
+        }
+    }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                _amplitudes.update { emptyList() } // Clear the list of amplitudes
-                initializeRecording(context)
-                while (_uiState.value.recordingState is RecordingState.Recording) {
-                    processAudioFrame()
+    private fun startRecordingJob() {
+        recordingJob = viewModelScope.launch(Dispatchers.IO) {
+            val buffer = ByteArray(BUFFER_SIZE)
+            while (isActive && _uiState.value.recordingState is RecordingState.Recording) {
+                val read = audioRecord?.read(buffer, 0, BUFFER_SIZE) ?: -1
+                if (read > 0) {
+                    processAudioData(buffer, read)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "IO Error starting recording: ${e.message}", e)
             }
         }
     }
 
-    private fun initializeRecording(context: Context) {
-        calculateCodecValues()
-        initializeOpusFile(context)
-        initializeCodec()
-        resumeAudioRecording(context)
-    }
+    private fun processAudioData(buffer: ByteArray, bytesRead: Int) {
+        // Write audio data to file
+        fileOutputStream?.write(buffer, 0, bytesRead)
 
-
-    private fun resumeAudioRecording(context: Context) {
-        with(uiState.value) {
-            ControllerAudio.initRecorder(context, sampleRate.value, chunkSize, channels.value == 1)
-            ControllerAudio.initTrack(sampleRate.value, channels.value == 1)
-            ControllerAudio.startRecord()
-        }
+        // Calculate and update amplitude
+        val amplitude = calculateAmplitude(buffer)
+        updateAmplitudes(amplitude)
     }
 
     fun stopRecording() {
         recordingEndTime = System.currentTimeMillis()
         timerJob?.cancel()
         timerJob = null
-        _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                releaseResources()
-                saveRecording()
-                _amplitudes.update { emptyList() } // Clear the list of amplitudes
-                Log.d(TAG, "Recording saved: ${currentOutputFile?.absolutePath}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error stopping recording", e)
-            }
+        viewModelScope.launch {
+            _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
+            _amplitudes.update { emptyList() }
         }
     }
 
     fun pauseRecording() {
-        timerJob?.cancel()
-        _uiState.update { it.copy(recordingState = RecordingState.Paused) }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                ControllerAudio.stopRecord()  // Stop capturing audio frames
-                // Update recordingEndTime to account for the pause duration
-                recordingEndTime = System.currentTimeMillis()
-                Log.d(TAG, "Recording paused")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error pausing recording", e)
-            }
+        viewModelScope.launch {
+            audioRepository.pauseRecording()
+            _uiState.update { it.copy(recordingState = RecordingState.Paused) }
+            timerJob?.cancel()
         }
     }
 
-    fun resumeRecording(context: Context) {
-        // Adjust recordingStartTime to exclude the paused duration
+    fun resumeRecording() {
         val pauseDuration = System.currentTimeMillis() - recordingEndTime
-        recordingStartTime += pauseDuration // Extend the start time by the paused duration
+        recordingStartTime += pauseDuration
 
-        startTimer()
-        _uiState.update { it.copy(recordingState = RecordingState.Recording) }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                resumeAudioRecording(context)  // Resume capturing audio frames
-                while (_uiState.value.recordingState is RecordingState.Recording) {
-                    processAudioFrame()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error resuming recording", e)
-            }
+        viewModelScope.launch {
+            audioRepository.resumeRecording()
+            _uiState.update { it.copy(recordingState = RecordingState.Recording) }
+            startTimer()
         }
     }
 
     fun discardRecording() {
         timerJob?.cancel()
         timerJob = null
-        _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
         recordingStartTime = 0L
         recordingEndTime = 0L
 
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                // Stop recording and release resources
-                ControllerAudio.stopRecord()
-                ControllerAudio.stopTrack()
-                releaseCodec()
-                // Close and delete the opus file without saving
-                _uiState.value.opusFile?.close()
-                fileOutputStream?.close()
-                currentOutputFile?.delete() // Delete the file
-                // Reset the state
-                _uiState.update { it.copy(opusFile = null) }
-                fileOutputStream = null
-                currentOutputFile = null
-                _amplitudes.update { emptyList() }
-                Log.d(TAG, "Recording discarded")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error discarding recording", e)
-            }
+        viewModelScope.launch {
+            audioRepository.discardRecording()
+            _uiState.update { it.copy(timer = 0, recordingState = RecordingState.Idle) }
+            _amplitudes.update { emptyList() }
         }
     }
 
-    private fun saveRecording() {
-        val duration = recordingEndTime - recordingStartTime // Duration in milliseconds
+
+    private fun calculateAmplitude(buffer: ByteArray): Int {
+        var sum = 0.0
+        // Process 16-bit samples
+        for (i in buffer.indices step 2) {
+            val sample = (buffer[i + 1].toInt() shl 8) or (buffer[i].toInt() and 0xFF)
+            sum += sample * sample
+        }
+        val rms = sqrt(sum / (buffer.size / 2))
+        return rms.toInt()
     }
 
-    /**
-     * Processes an audio frame by performing the following steps:
-     * 1. Retrieves an audio frame from the ControllerAudio.
-     * 2. Calculates the amplitude of the frame.
-     * 3. Compares the calculated amplitude with a predefined threshold and adds the appropriate amplitude to the buffer.
-     * 4. If the buffer size reaches the smoothing window size, calculates the average amplitude, updates the amplitude list, and removes the oldest amplitude from the buffer.
-     * 5. If the buffer size is less than the smoothing window size, updates the amplitude list with the baseline amplitude.
-     * 6. Encodes the audio frame using the codec and, if successful, writes and plays the encoded frame.
-     */
-    private fun processAudioFrame() {
-        if (_uiState.value.recordingState is RecordingState.Paused) {
-            // If the recording is paused, skip processing the audio frame
-            return
-        }
-        ControllerAudio.getFrame()?.let { frame ->
-            computeWaveformAmplitudes(frame)
-
-            codec.encode(frame, _uiState.value.frameSizeByte)?.let { encodedFrame ->
-                writeEncodedFrame(encodedFrame)
-            }
-        }
-    }
-
-    private fun computeWaveformAmplitudes(frame: ByteArray) {
-        val amplitude = calculateAmplitude(frame)
-
+    private fun updateAmplitudes(amplitude: Int) {
         val processedAmplitude =
             if (amplitude > AMPLITUDE_THRESHOLD) amplitude else BASELINE_AMPLITUDE
         amplitudeBuffer.add(processedAmplitude)
@@ -224,96 +157,14 @@ class RecordingScreenViewModel : ViewModel() {
         }
     }
 
-
-    private fun calculateAmplitude(frame: ByteArray): Int {
-        // Calculate the root mean square (RMS) amplitude of the frame
-        val sum = frame.sumOf { it * it }
-        val rms = sqrt(sum.toDouble() / frame.size)
-        return rms.toInt()
-    }
-
-    private fun writeEncodedFrame(encodedFrame: ByteArray) {
-        val data = OpusAudioData(encodedFrame)
-        _uiState.value.opusFile?.writeAudioData(data)
-    }
-
-    private fun releaseCodec() {
-        codec.encoderRelease()
-        codec.decoderRelease()
-    }
-
-    private fun releaseResources() {
-        try {
-            ControllerAudio.stopRecord()
-            ControllerAudio.stopTrack()
-            releaseCodec()
-            _uiState.value.opusFile?.close()
-            fileOutputStream?.close()
-        } catch (e: IOException) {
-            Log.e(TAG, "Error stopping recording: ${e.message}", e)
-        } finally {
-            _uiState.update { it.copy(opusFile = null) }
-            fileOutputStream = null
-        }
-    }
-
-    private fun initializeCodec() {
-        codec.encoderInit(_uiState.value.sampleRate, _uiState.value.channels, application)
-        codec.decoderInit(_uiState.value.sampleRate, _uiState.value.channels)
-    }
-
-    private fun calculateCodecValues() {
-        val state = uiState.value
-        val defFrameSize = getDefaultFrameSize(state.sampleRate.value)
-        val chunkSize = defFrameSize.value * state.channels.value * BYTES_PER_SAMPLE
-        val frameSizeShort = FrameSize.fromValue(chunkSize / state.channels.value)
-        val frameSizeByte =
-            FrameSize.fromValue(chunkSize / BYTES_PER_SAMPLE / state.channels.value)
-
-        _uiState.update {
-            it.copy(
-                defFrameSize = defFrameSize,
-                chunkSize = chunkSize,
-                frameSizeShort = frameSizeShort,
-                frameSizeByte = frameSizeByte
-            )
-        }
-    }
-
-    private fun getDefaultFrameSize(sampleRate: Int): FrameSize {
-        return when (sampleRate) {
-            8000 -> FrameSize._160()
-            12000 -> FrameSize._240()
-            16000 -> FrameSize._160()
-            24000 -> FrameSize._240()
-            48000 -> FrameSize._120()
-            else -> throw IllegalArgumentException("Unsupported sample rate: $sampleRate")
-        }
-    }
-
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000)
-                _uiState.update {
-                    it.copy(timer = it.timer + 1)
-                }
+                _uiState.update { it.copy(timer = it.timer + 1) }
             }
         }
-    }
-
-    private fun initializeOpusFile(context: Context) {
-        val (file, outputStream) = FileUtils.createOutputFile(context)
-        currentOutputFile = file
-        Log.d(TAG, "Output file path: ${currentOutputFile?.absolutePath}")
-
-        val tags = OpusTags()
-        val info = OpusInfo().apply {
-            numChannels = _uiState.value.channels.value
-            setSampleRate(_uiState.value.sampleRate.value.toLong())
-        }
-        _uiState.update { it.copy(opusFile = OpusFile(outputStream, info, tags)) }
     }
 }
 
@@ -325,15 +176,7 @@ sealed class RecordingState {
 
 data class VoiceRecorderUiState(
     val timer: Long = 0,
-    val recordingState: RecordingState = RecordingState.Idle,
-    val sampleRate: SampleRate = SampleRate._16000(),
-    val channelMode: AudioMode = AudioMode.MONO,
-    val channels: Channels = Channels.mono(),
-    val defFrameSize: FrameSize = FrameSize._160(),
-    val chunkSize: Int = 0,
-    val frameSizeShort: FrameSize = FrameSize._160(),
-    val frameSizeByte: FrameSize = FrameSize._160(),
-    val opusFile: OpusFile? = null
+    val recordingState: RecordingState = RecordingState.Idle
 )
 
 const val ANIMATION_DURATION = 300

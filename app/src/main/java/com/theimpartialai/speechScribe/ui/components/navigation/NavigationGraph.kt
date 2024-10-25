@@ -58,7 +58,7 @@ fun NavigationGraph(
                 onStartRecording = { checkAndRequestPermissions() },
                 onPauseRecording = { recordingScreenViewModel.pauseRecording() },
                 onResumeRecording = { context ->
-                    recordingScreenViewModel.resumeRecording(context)
+                    recordingScreenViewModel.resumeRecording()
                 },
                 onStopRecording = { recordingScreenViewModel.stopRecording() },
                 onDiscardRecording = { recordingScreenViewModel.discardRecording() }
