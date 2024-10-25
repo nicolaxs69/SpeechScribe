@@ -2,11 +2,18 @@ package com.theimpartialai.speechScribe.repository
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
+import android.util.Log
 import com.theimpartialai.speechScribe.model.AudioRecording
 import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils.getOutputDirectory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class AudioRecordingImpl : AudioRecordingInterface {
+
+    private val audioPlayer: AudioPlayer = AudioPlayerImpl()
+
+
     override suspend fun loadRecordings(context: Context): List<AudioRecording> {
         val outputDir = getOutputDirectory(context)
         val recordings = getRecordingsFromDirectory(outputDir)
@@ -39,6 +46,50 @@ class AudioRecordingImpl : AudioRecordingInterface {
         } finally {
             retriever.release()
         }
+    }
+
+    override suspend fun togglePlayback(
+        recording: AudioRecording,
+        onPlaybackStarted: () -> Unit,
+        onPlaybackPaused: () -> Unit,
+        onPlaybackCompleted: () -> Unit
+    ) {
+        withContext(Dispatchers.IO) {
+            try {
+                when {
+                    recording.isPlaying -> {
+                        audioPlayer.pausePlayback()
+                        onPlaybackPaused()
+                    }
+
+                    recording.isPaused -> {
+                        audioPlayer.resumePlayback()
+                        onPlaybackStarted()
+                    }
+
+                    else -> {
+                        // Always start from beginning when starting fresh playback
+                        audioPlayer.startPlayback(
+                            filePath = recording.filePath,
+                            position = 0L,
+                            onComplete = onPlaybackCompleted
+                        )
+                        onPlaybackStarted()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AudioRecordingImpl", "Error toggling playback", e)
+                onPlaybackCompleted()
+            }
+        }
+    }
+
+    override fun stopPlayback() {
+        audioPlayer.stopPlayback()
+    }
+
+    override fun release() {
+        audioPlayer.release()
     }
 
 

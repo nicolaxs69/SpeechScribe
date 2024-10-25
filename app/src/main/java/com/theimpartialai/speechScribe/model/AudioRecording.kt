@@ -8,6 +8,9 @@ data class AudioRecording(
     val filePath: String,
     val fileSize: Double,
     val timeStamp: Long,
+    val isPlaying: Boolean = false,
+    val isPaused: Boolean = false,
+    val playbackPosition: Long = 0
 ) {
     val formattedDuration: String
         get() {

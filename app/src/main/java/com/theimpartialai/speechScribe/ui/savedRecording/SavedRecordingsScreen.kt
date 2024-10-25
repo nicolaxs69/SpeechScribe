@@ -40,7 +40,7 @@ import com.theimpartialai.speechScribe.model.AudioRecording
 fun SavedRecordingsScreen(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
-    onPlay: (AudioRecording) -> Unit,
+    onTogglePlayback: (AudioRecording) -> Unit,
     onMoreOptions: (AudioRecording) -> Unit
 ) {
     Column(
@@ -52,7 +52,7 @@ fun SavedRecordingsScreen(
         RecordingList(
             recordings = recordings,
             onDelete = onDelete,
-            onPlay = onPlay,
+            onTogglePlayback = onTogglePlayback,
             onMoreOptions = onMoreOptions
         )
     }
@@ -62,7 +62,7 @@ fun SavedRecordingsScreen(
 fun RecordingList(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
-    onPlay: (AudioRecording) -> Unit,
+    onTogglePlayback: (AudioRecording) -> Unit,
     onMoreOptions: (AudioRecording) -> Unit
 ) {
     LazyColumn(
@@ -73,7 +73,7 @@ fun RecordingList(
             RecordingItem(
                 recording = recording,
                 onDelete = { onDelete(recording) },
-                onPlay = { onPlay(recording) },
+                onTogglePlayback = { onTogglePlayback(recording) },
                 onMoreOptions = { onMoreOptions(recording) }
             )
         }
@@ -84,7 +84,7 @@ fun RecordingList(
 fun RecordingItem(
     recording: AudioRecording,
     onDelete: () -> Unit,
-    onPlay: () -> Unit,
+    onTogglePlayback: () -> Unit,
     onMoreOptions: () -> Unit
 ) {
     val showMenu = remember { mutableStateOf(false) }
@@ -111,8 +111,12 @@ fun RecordingItem(
                 modifier = Modifier
                     .padding(1.dp)
                     .size(45.dp)
-                    .clickable { onPlay() },
-                imageVector = ImageVector.vectorResource(id = R.drawable.waveform_icon),
+                    .clickable { onTogglePlayback() },
+                imageVector = if (recording.isPlaying) {
+                    ImageVector.vectorResource(id = R.drawable.pause_icon)
+                } else {
+                    ImageVector.vectorResource(id = R.drawable.mic_icon)
+                },
                 tint = Color.Red,
                 contentDescription = "Waveform"
             )
@@ -185,7 +189,7 @@ fun SavedRecordingsScreenPreview() {
             )
         },
         onDelete = {},
-        onPlay = {},
+        onTogglePlayback = {},
         onMoreOptions = {}
     )
 }
