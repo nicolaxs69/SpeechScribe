@@ -14,12 +14,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
+import kotlin.math.sqrt
 
 class AudioRecordingImpl : AudioRecordingInterface {
 
@@ -32,7 +34,7 @@ class AudioRecordingImpl : AudioRecordingInterface {
 
 
     @SuppressLint("MissingPermission")
-    override suspend fun startRecording(context: Context) {
+    override suspend fun startRecording(context: Context, amplitudeListener: AmplitudeListener) {
         withContext(Dispatchers.IO) {
 
             val (file, outputStream) = FileUtils.createOutputFile(context)
@@ -54,10 +56,16 @@ class AudioRecordingImpl : AudioRecordingInterface {
 
             recordingJob = CoroutineScope(Dispatchers.IO).launch {
                 val buffer = ByteArray(BUFFER_SIZE)
-                while (isActive && isRecording) {
-                    val read = audioRecord?.read(buffer, 0, BUFFER_SIZE) ?: -1
-                    if (read > 0) {
-                        fileOutputStream?.write(buffer, 0, read)
+                while (isActive) {
+                    if (isRecording) {
+                        val read = audioRecord?.read(buffer, 0, BUFFER_SIZE) ?: -1
+                        if (read > 0) {
+                            fileOutputStream?.write(buffer, 0, read)
+                            val amplitude = calculateAmplitude(buffer)
+                            amplitudeListener.onAmplitude(amplitude)
+                        }
+                    } else {
+                        delay(100) // Avoid busy-waiting when paused
                     }
                 }
             }
@@ -72,7 +80,7 @@ class AudioRecordingImpl : AudioRecordingInterface {
         }
     }
 
-    override suspend fun resumeRecording() {
+    override suspend fun resumeRecording(amplitudeListener: AmplitudeListener) {
         withContext(Dispatchers.IO) {
             audioRecord?.startRecording()
             isRecording = true
@@ -83,6 +91,8 @@ class AudioRecordingImpl : AudioRecordingInterface {
                     val read = audioRecord?.read(buffer, 0, BUFFER_SIZE) ?: -1
                     if (read > 0) {
                         fileOutputStream?.write(buffer, 0, read)
+                        val amplitude = calculateAmplitude(buffer)
+                        amplitudeListener.onAmplitude(amplitude)
                     }
                 }
             }
@@ -121,6 +131,7 @@ class AudioRecordingImpl : AudioRecordingInterface {
         return recordings
     }
 
+
     private fun getRecordingsFromDirectory(directory: File): List<AudioRecording> {
         val files = directory.listFiles { file -> file.extension == "wav" } ?: emptyArray()
         return files.map { file ->
@@ -128,13 +139,12 @@ class AudioRecordingImpl : AudioRecordingInterface {
                 fileName = file.nameWithoutExtension,
                 filePath = file.absolutePath,
                 fileSize = file.length().toDouble(),
-                duration = 0,
+                duration = getAudioDuration(file),
                 timeStamp = file.lastModified()
 
             )
         }
     }
-
 
     private fun getAudioDuration(file: File): Long {
         val retriever = MediaMetadataRetriever()
@@ -181,7 +191,6 @@ class AudioRecordingImpl : AudioRecordingInterface {
                 }
             } catch (e: Exception) {
                 Log.e("AudioRecordingImpl", "Error toggling playback", e)
-                // Reset states in case of error
                 onPlaybackCompleted()
             }
         }
@@ -256,6 +265,17 @@ class AudioRecordingImpl : AudioRecordingInterface {
     private fun writeShort(outputStream: FileOutputStream, value: Int) {
         outputStream.write(value)
         outputStream.write(value shr 8)
+    }
+
+    private fun calculateAmplitude(buffer: ByteArray): Int {
+        var sum = 0.0
+        // Process 16-bit PCM samples
+        for (i in buffer.indices step 2) {
+            val sample = (buffer[i + 1].toInt() shl 8) or (buffer[i].toInt() and 0xFF)
+            sum += sample * sample
+        }
+        val rms = sqrt(sum / (buffer.size / 2))
+        return rms.toInt()
     }
 
     companion object {
