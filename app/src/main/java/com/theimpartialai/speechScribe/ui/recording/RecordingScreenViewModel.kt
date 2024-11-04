@@ -1,7 +1,8 @@
 package com.theimpartialai.speechScribe.ui.recording
 
+import android.app.Application
 import android.content.Context
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theimpartialai.speechScribe.repository.AmplitudeListener
 import com.theimpartialai.speechScribe.repository.AudioRecordingImpl
@@ -13,14 +14,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.Collections
 
-class RecordingScreenViewModel : ViewModel(), AmplitudeListener {
+class RecordingScreenViewModel(application: Application) : AndroidViewModel(application),
+    AmplitudeListener {
     companion object {
         private const val TAG = "VoiceRecorderViewModel"
-        private const val AMPLITUDE_THRESHOLD = 40
-        private const val BASELINE_AMPLITUDE = 10
+        private const val MAX_RECORDER_AMPLITUDE = 32767
+        private const val DISPLAY_AMPLITUDE_MAX = 100 // Desired max for visualization
         private const val SMOOTHING_WINDOW_SIZE = 5
         private const val MAX_AMPLITUDES = 300
+        private const val AMPLITUDE_UPDATE_INTERVAL = 50L // 50ms
     }
 
     private var recordingStartTime: Long = 0L
@@ -33,9 +37,9 @@ class RecordingScreenViewModel : ViewModel(), AmplitudeListener {
     private val _amplitudes = MutableStateFlow<List<Int>>(emptyList())
     val amplitudes: StateFlow<List<Int>> = _amplitudes.asStateFlow()
 
-    private val amplitudeBuffer = mutableListOf<Int>()
+    private val amplitudeBuffer = Collections.synchronizedList(mutableListOf<Int>())
 
-    private val audioRepository = AudioRecordingImpl()
+    private val audioRepository = AudioRecordingImpl(application)
 
     /**
     +      * Starts the recording process by initializing the necessary components and updating the UI state.
@@ -46,7 +50,7 @@ class RecordingScreenViewModel : ViewModel(), AmplitudeListener {
     fun startRecording(context: Context) {
         recordingStartTime = System.currentTimeMillis()
         viewModelScope.launch {
-            audioRepository.startRecording(context, this@RecordingScreenViewModel)
+            audioRepository.startRecording(this@RecordingScreenViewModel)
             _uiState.update { it.copy(recordingState = RecordingState.Recording) }
             startTimer()
         }
@@ -98,13 +102,17 @@ class RecordingScreenViewModel : ViewModel(), AmplitudeListener {
 
 
     private fun updateAmplitudes(amplitude: Int) {
-        val processedAmplitude =
-            if (amplitude > AMPLITUDE_THRESHOLD) amplitude else BASELINE_AMPLITUDE
-        amplitudeBuffer.add(processedAmplitude)
-        if (amplitudeBuffer.size >= SMOOTHING_WINDOW_SIZE) {
-            val smoothedAmplitude = amplitudeBuffer.average().toInt()
-            amplitudeBuffer.removeAt(0)
-            _amplitudes.update { (it + smoothedAmplitude).takeLast(MAX_AMPLITUDES) }
+        val scaledAmplitude =
+            (amplitude.toFloat() / MAX_RECORDER_AMPLITUDE * DISPLAY_AMPLITUDE_MAX).toInt()
+                .coerceIn(0, DISPLAY_AMPLITUDE_MAX)
+
+        synchronized(amplitudeBuffer) {
+            amplitudeBuffer.add(scaledAmplitude)
+            if (amplitudeBuffer.size >= SMOOTHING_WINDOW_SIZE) {
+                val smoothedAmplitude = amplitudeBuffer.average().toInt()
+                amplitudeBuffer.removeAt(0)
+                _amplitudes.update { (it + smoothedAmplitude).takeLast(MAX_AMPLITUDES) }
+            }
         }
     }
 

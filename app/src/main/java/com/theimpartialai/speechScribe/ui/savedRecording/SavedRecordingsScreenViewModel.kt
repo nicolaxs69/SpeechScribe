@@ -1,22 +1,25 @@
 package com.theimpartialai.speechScribe.ui.savedRecording
 
+import android.app.Application
 import android.content.Context
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theimpartialai.speechScribe.model.AudioRecording
+import com.theimpartialai.speechScribe.repository.AudioPlayerImpl
 import com.theimpartialai.speechScribe.repository.AudioRecordingImpl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class SavedRecordingsViewModel : ViewModel() {
-    private val audioRepository = AudioRecordingImpl()
+class SavedRecordingsViewModel(application: Application) : AndroidViewModel(application) {
+    private val audioRepository = AudioRecordingImpl(application)
+    private val audioPlayer = AudioPlayerImpl(application)
     private val _recordings = MutableStateFlow<List<AudioRecording>>(emptyList())
     val recordings: StateFlow<List<AudioRecording>> get() = _recordings
 
-    fun loadRecordings(context: Context) {
+    fun loadRecordings() {
         viewModelScope.launch {
-            val recordings = audioRepository.loadRecordings(context)
+            val recordings = audioRepository.loadRecordings()
             _recordings.value = recordings
         }
     }
@@ -44,10 +47,10 @@ class SavedRecordingsViewModel : ViewModel() {
                         playbackPosition = 0
                     )
                 )
-                audioRepository.stopPlayback()
+                audioPlayer.stopPlayback()
             }
 
-            audioRepository.togglePlayback(
+            audioPlayer.togglePlayback(
                 recording = recording,
                 onPlaybackStarted = {
                     updateRecordingState(

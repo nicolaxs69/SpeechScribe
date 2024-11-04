@@ -1,9 +1,6 @@
 package com.theimpartialai.speechScribe.repository
 
-import android.annotation.SuppressLint
 import android.content.Context
-import android.media.AudioFormat
-import android.media.AudioRecord
 import android.media.MediaMetadataRetriever
 import android.media.MediaRecorder
 import android.util.Log
@@ -19,114 +16,108 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.io.RandomAccessFile
-import kotlin.math.sqrt
 
-class AudioRecordingImpl : AudioRecordingInterface {
+class AudioRecordingImpl(context: Context) : AudioRecordingInterface {
 
-    private val audioPlayer: AudioPlayer = AudioPlayerImpl()
-    private var audioRecord: AudioRecord? = null
-    private var fileOutputStream: FileOutputStream? = null
+    val TAG = "AudioRecordingImpl"
+    private val appContext = context.applicationContext
+    private var mediaRecorder: MediaRecorder? = null
+    private val audioPlayer: AudioPlayer = AudioPlayerImpl(appContext)
     private var currentOutputFile: File? = null
     private var recordingJob: Job? = null
     private var isRecording = false
+    private val ioScope = CoroutineScope(Dispatchers.IO)
 
-
-    @SuppressLint("MissingPermission")
-    override suspend fun startRecording(context: Context, amplitudeListener: AmplitudeListener) {
+    override suspend fun startRecording(amplitudeListener: AmplitudeListener) {
         withContext(Dispatchers.IO) {
+            try {
+                val file = FileUtils.createOutputFile(appContext).first
+                currentOutputFile = file
+                mediaRecorder = setupMediaRecorder(file)
+                isRecording = true
 
-            val (file, outputStream) = FileUtils.createOutputFile(context)
-            currentOutputFile = file
-            fileOutputStream = outputStream
-            writeWavHeader(fileOutputStream!!, 0)
-
-            val minBufferSize =
-                AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
-            audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.MIC,
-                SAMPLE_RATE,
-                CHANNEL_CONFIG,
-                AUDIO_FORMAT,
-                minBufferSize
-            )
-            audioRecord?.startRecording()
-            isRecording = true
-
-            recordingJob = CoroutineScope(Dispatchers.IO).launch {
-                val buffer = ByteArray(BUFFER_SIZE)
-                while (isActive) {
-                    if (isRecording) {
-                        val read = audioRecord?.read(buffer, 0, BUFFER_SIZE) ?: -1
-                        if (read > 0) {
-                            fileOutputStream?.write(buffer, 0, read)
-                            val amplitude = calculateAmplitude(buffer)
-                            amplitudeListener.onAmplitude(amplitude)
+                recordingJob = ioScope.launch {
+                    while (isActive) {
+                        mediaRecorder?.let { recorder ->
+                            readAmplitude(recorder, amplitudeListener)
                         }
-                    } else {
-                        delay(100) // Avoid busy-waiting when paused
+                        delay(100)
                     }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting recording", e)
             }
         }
     }
 
     override suspend fun pauseRecording() {
         withContext(Dispatchers.IO) {
+            mediaRecorder?.pause()
             isRecording = false
-            audioRecord?.stop()
             recordingJob?.cancelAndJoin()
         }
     }
 
     override suspend fun resumeRecording(amplitudeListener: AmplitudeListener) {
         withContext(Dispatchers.IO) {
-            audioRecord?.startRecording()
-            isRecording = true
+            try {
+                mediaRecorder?.resume()
+                isRecording = true
 
-            recordingJob = CoroutineScope(Dispatchers.IO).launch {
-                val buffer = ByteArray(BUFFER_SIZE)
-                while (isActive && isRecording) {
-                    val read = audioRecord?.read(buffer, 0, BUFFER_SIZE) ?: -1
-                    if (read > 0) {
-                        fileOutputStream?.write(buffer, 0, read)
-                        val amplitude = calculateAmplitude(buffer)
-                        amplitudeListener.onAmplitude(amplitude)
+                recordingJob = ioScope.launch {
+                    while (isActive && isRecording) {
+                        mediaRecorder?.let { recorder ->
+                            val amplitude = recorder.maxAmplitude
+                            amplitudeListener.onAmplitude(amplitude)
+                            delay(50)
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resuming recording", e)
+                isRecording = false
             }
         }
     }
 
     override suspend fun stopRecording() {
         withContext(Dispatchers.IO) {
-            isRecording = false
-            audioRecord?.stop()
-            audioRecord?.release()
-            audioRecord = null
-            recordingJob?.cancelAndJoin()
-            fileOutputStream?.close()
-            updateWavHeader(currentOutputFile!!)
+            try {
+                isRecording = false
+                mediaRecorder?.apply {
+                    stop()
+                    release()
+                }
+                mediaRecorder = null
+                recordingJob?.cancelAndJoin()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping recording", e)
+            }
         }
     }
 
     override suspend fun discardRecording() {
         withContext(Dispatchers.IO) {
-            isRecording = false
-            audioRecord?.stop()
-            audioRecord?.release()
-            audioRecord = null
-            recordingJob?.cancelAndJoin()
-            fileOutputStream?.close()
-            currentOutputFile?.delete()
-            currentOutputFile = null
+            try {
+                isRecording = false
+                mediaRecorder?.apply {
+                    stop()
+                    release()
+                }
+                mediaRecorder = null
+                currentOutputFile?.delete()
+                currentOutputFile = null
+                recordingJob?.cancelAndJoin()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error discarding recording", e)
+            }
         }
     }
 
 
-    override suspend fun loadRecordings(context: Context): List<AudioRecording> {
-        val outputDir = getOutputDirectory(context)
+    override suspend fun loadRecordings(): List<AudioRecording> {
+        val outputDir = getOutputDirectory(appContext)
         val recordings = getRecordingsFromDirectory(outputDir)
         return recordings
     }
@@ -160,42 +151,6 @@ class AudioRecordingImpl : AudioRecordingInterface {
         }
     }
 
-    override suspend fun togglePlayback(
-        recording: AudioRecording,
-        onPlaybackStarted: () -> Unit,
-        onPlaybackPaused: () -> Unit,
-        onPlaybackCompleted: () -> Unit
-    ) {
-        withContext(Dispatchers.IO) {
-            try {
-                when {
-                    recording.isPlaying -> {
-                        audioPlayer.pausePlayback()
-                        onPlaybackPaused()
-                    }
-
-                    recording.isPaused -> {
-                        audioPlayer.resumePlayback()
-                        onPlaybackStarted()
-                    }
-
-                    else -> {
-                        // Always start from beginning when starting fresh playback
-                        audioPlayer.startPlayback(
-                            filePath = recording.filePath,
-                            position = 0L,
-                            onComplete = onPlaybackCompleted
-                        )
-                        onPlaybackStarted()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("AudioRecordingImpl", "Error toggling playback", e)
-                onPlaybackCompleted()
-            }
-        }
-    }
-
     override fun stopPlayback() {
         audioPlayer.stopPlayback()
     }
@@ -204,7 +159,6 @@ class AudioRecordingImpl : AudioRecordingInterface {
         audioPlayer.release()
     }
 
-
     override suspend fun deleteRecording(recording: AudioRecording) {
         val file = File(recording.filePath)
         if (file.exists()) {
@@ -212,77 +166,25 @@ class AudioRecordingImpl : AudioRecordingInterface {
         }
     }
 
-    private fun updateWavHeader(wavFile: File) {
-        val fileLength = wavFile.length().toInt() - 44 // Total file size - header size
-        val raf = RandomAccessFile(wavFile, "rw")
-
-        // Update chunk size
-        raf.seek(4)
-        writeInt(raf, 36 + fileLength)
-
-        // Update data chunk size
-        raf.seek(40)
-        writeInt(raf, fileLength)
-
-        raf.close()
-    }
-
-    private fun writeWavHeader(outputStream: FileOutputStream, fileLength: Int) {
-        // RIFF header
-        outputStream.write("RIFF".toByteArray())
-        writeInt(outputStream, 36 + fileLength)
-        outputStream.write("WAVE".toByteArray())
-
-        // fmt chunk
-        outputStream.write("fmt ".toByteArray())
-        writeInt(outputStream, 16)
-        writeShort(outputStream, 1)
-        writeShort(outputStream, 1)
-        writeInt(outputStream, SAMPLE_RATE)
-        writeInt(outputStream, SAMPLE_RATE * 2)
-        writeShort(outputStream, 2)
-        writeShort(outputStream, 16)
-
-        // data chunk
-        outputStream.write("data".toByteArray())
-        writeInt(outputStream, fileLength)
-    }
-
-    private fun writeInt(outputStream: FileOutputStream, value: Int) {
-        outputStream.write(value)
-        outputStream.write(value shr 8)
-        outputStream.write(value shr 16)
-        outputStream.write(value shr 24)
-    }
-
-    private fun writeInt(raf: RandomAccessFile, value: Int) {
-        raf.write(value)
-        raf.write(value shr 8)
-        raf.write(value shr 16)
-        raf.write(value shr 24)
-    }
-
-    private fun writeShort(outputStream: FileOutputStream, value: Int) {
-        outputStream.write(value)
-        outputStream.write(value shr 8)
-    }
-
-    private fun calculateAmplitude(buffer: ByteArray): Int {
-        var sum = 0.0
-        // Process 16-bit PCM samples
-        for (i in buffer.indices step 2) {
-            val sample = (buffer[i + 1].toInt() shl 8) or (buffer[i].toInt() and 0xFF)
-            sum += sample * sample
+    private fun setupMediaRecorder(outputFile: File): MediaRecorder {
+        return MediaRecorder(appContext).apply {
+            setAudioSource(MediaRecorder.AudioSource.MIC)
+            setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+            setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+            setAudioSamplingRate(44100)
+            setAudioEncodingBitRate(128000)
+            setOutputFile(outputFile.absolutePath)
+            prepare()
+            start()
         }
-        val rms = sqrt(sum / (buffer.size / 2))
-        return rms.toInt()
     }
 
-    companion object {
-        private const val SAMPLE_RATE = 16000
-        private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
-        private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-        private const val BUFFER_SIZE = 2048
+    private fun readAmplitude(recorder: MediaRecorder, listener: AmplitudeListener) {
+        try {
+            listener.onAmplitude(recorder.maxAmplitude)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading amplitude", e)
+        }
     }
 }
 

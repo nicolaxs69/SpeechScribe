@@ -44,7 +44,7 @@ fun RecordingScreen(
     uiState: VoiceRecorderUiState,
     amplitudes: List<Int>,
     onStartRecording: () -> Unit,
-    onResumeRecording: (Context) -> Unit,
+    onResumeRecording: () -> Unit,
     onPauseRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onDiscardRecording: () -> Unit
@@ -102,7 +102,7 @@ private fun RecordingButtons(
     modifier: Modifier,
     uiState: VoiceRecorderUiState,
     onPauseRecording: () -> Unit,
-    onResumeRecording: (Context) -> Unit,
+    onResumeRecording: () -> Unit,
     onStartRecording: () -> Unit,
     onStopRecording: () -> Unit,
     onDiscardRecording: () -> Unit
@@ -158,7 +158,7 @@ private fun RecordingButtons(
                     }
 
                     is RecordingState.Paused -> {
-                        onResumeRecording(context)
+                        onResumeRecording()
                     }
                 }
             },
