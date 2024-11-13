@@ -9,9 +9,9 @@ import com.example.opus.Constants.Channels
 import com.example.opus.Constants.FrameSize
 import com.example.opus.Constants.SampleRate
 import com.example.opus.Opus
-import com.theimpartialai.speechScribe.opusEncoding.utils.ControllerAudio
-import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils
 import com.theimpartialai.speechScribe.ui.recording.AudioMode
+import com.theimpartialai.speechScribe.utils.ControllerAudio
+import com.theimpartialai.speechScribe.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

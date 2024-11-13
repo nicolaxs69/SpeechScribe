@@ -1,4 +1,4 @@
-package com.theimpartialai.speechScribe.opusEncoding.utils
+package com.theimpartialai.speechScribe.utils
 
 import android.content.Context
 import android.content.pm.PackageManager

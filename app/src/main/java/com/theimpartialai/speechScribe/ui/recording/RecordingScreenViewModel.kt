@@ -1,7 +1,6 @@
 package com.theimpartialai.speechScribe.ui.recording
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theimpartialai.speechScribe.repository.AmplitudeListener
@@ -47,7 +46,7 @@ class RecordingScreenViewModel(application: Application) : AndroidViewModel(appl
     +      * @param context The context used to initialize audio controllers and file operations.
     +      */
 
-    fun startRecording(context: Context) {
+    fun startRecording() {
         recordingStartTime = System.currentTimeMillis()
         viewModelScope.launch {
             audioRepository.startRecording(this@RecordingScreenViewModel)

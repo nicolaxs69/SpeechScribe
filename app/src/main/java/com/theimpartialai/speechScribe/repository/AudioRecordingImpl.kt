@@ -5,8 +5,8 @@ import android.media.MediaMetadataRetriever
 import android.media.MediaRecorder
 import android.util.Log
 import com.theimpartialai.speechScribe.model.AudioRecording
-import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils
-import com.theimpartialai.speechScribe.opusEncoding.utils.FileUtils.getOutputDirectory
+import com.theimpartialai.speechScribe.utils.FileUtils
+import com.theimpartialai.speechScribe.utils.FileUtils.getOutputDirectory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
