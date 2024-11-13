@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -24,6 +27,24 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        val secureProps = Properties()
+        if (rootProject.file("secure.properties").exists()) {
+            secureProps.load(FileInputStream(rootProject.file("secure.properties")))
+        }
+
+        buildConfigField("String", "AWS_USER_POOL_ID", "\"${secureProps["AWS_USER_POOL_ID"]}\"")
+        buildConfigField("String", "AWS_CLIENT_ID", "\"${secureProps["AWS_CLIENT_ID"]}\"")
+        buildConfigField(
+            "String",
+            "AWS_IDENTITY_POOL_ID",
+            "\"${secureProps["AWS_IDENTITY_POOL_ID"]}\""
+        )
+        buildConfigField("String", "AWS_REGION", "\"${secureProps["AWS_REGION"]}\"")
+        buildConfigField("String", "AWS_BUCKET_NAME", "\"${secureProps["AWS_BUCKET_NAME"]}\"")
+        buildConfigField("String", "AWS_DEFAULT_USER", "\"${secureProps["AWS_DEFAULT_USER"]}\"")
+        buildConfigField("String", "AWS_DEFAULT_PASSWORD", "\"${secureProps["AWS_DEFAULT_PASSWORD"]}\"")
+        buildConfigField("String", "AWS_DEFAULT_NEW_PASSWORD", "\"${secureProps["AWS_DEFAULT_NEW_PASSWORD"]}\"")
     }
 
     buildTypes {
@@ -49,6 +70,7 @@ android {
         }
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
     composeOptions {
@@ -84,10 +106,17 @@ dependencies {
     implementation(libs.compose.audiowaveform)
     implementation(libs.androidx.navigation.compose)
 
+    // S3 dependencies
+    implementation(libs.aws.android.sdk.s3)
+    implementation(libs.aws.android.core)
+    implementation(libs.aws.android.sdk.cognitoidentityprovider)
+
     // Firebase dependencies
     implementation(libs.firebase.analytics)
     implementation(platform(libs.firebase.bom))
 
-    implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("androidx.media3:media3-ui:1.4.1")
+    implementation(libs.androidx.security.crypto)
+
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
 }
