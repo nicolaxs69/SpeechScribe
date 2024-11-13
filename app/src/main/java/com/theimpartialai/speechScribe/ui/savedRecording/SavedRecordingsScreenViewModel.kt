@@ -1,17 +1,21 @@
 package com.theimpartialai.speechScribe.ui.savedRecording
 
 import android.app.Application
-import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theimpartialai.speechScribe.model.AudioRecording
 import com.theimpartialai.speechScribe.repository.AudioPlayerImpl
 import com.theimpartialai.speechScribe.repository.AudioRecordingImpl
+import com.theimpartialai.speechScribe.repository.S3UploadManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 class SavedRecordingsViewModel(application: Application) : AndroidViewModel(application) {
+    private val s3UploadManager = S3UploadManager(application)
+
     private val audioRepository = AudioRecordingImpl(application)
     private val audioPlayer = AudioPlayerImpl(application)
     private val _recordings = MutableStateFlow<List<AudioRecording>>(emptyList())
@@ -91,5 +95,20 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
     override fun onCleared() {
         super.onCleared()
         audioRepository.release()
+    }
+
+    fun uploadRecording(recording: AudioRecording) {
+        viewModelScope.launch {
+            try {
+                val file = File(recording.filePath)
+                if (file.exists()) {
+                    s3UploadManager.uploadFileToS3(file)
+                } else {
+                    Log.e("ViewModel", "File does not exist: ${recording.filePath}")
+                }
+            } catch (e: Exception) {
+                Log.e("ViewModel", "Error uploading file", e)
+            }
+        }
     }
 }
