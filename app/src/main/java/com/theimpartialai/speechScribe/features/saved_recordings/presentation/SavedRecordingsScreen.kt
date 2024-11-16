@@ -20,8 +20,11 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,27 +38,54 @@ import androidx.compose.ui.unit.dp
 import com.theimpartialai.speechScribe.R
 import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.AudioRecording
 
-
 @Composable
 fun SavedRecordingsScreen(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
     onUpload: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording) -> Unit,
-    onMoreOptions: (AudioRecording) -> Unit
+    onMoreOptions: (AudioRecording) -> Unit,
+    uploadStatus: String?,
+    onResetUploadStatus: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .padding(top = 20.dp)
-            .fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        RecordingList(
-            recordings = recordings,
-            onUpload = onUpload,
-            onDelete = onDelete,
-            onTogglePlayback = onTogglePlayback,
-            onMoreOptions = onMoreOptions
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uploadStatus) {
+        if (uploadStatus != null) {
+            snackbarHostState.showSnackbar(message = uploadStatus)
+            onResetUploadStatus()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .padding(top = 20.dp)
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            RecordingList(
+                recordings = recordings,
+                onUpload = onUpload,
+                onDelete = onDelete,
+                onTogglePlayback = onTogglePlayback,
+                onMoreOptions = onMoreOptions
+            )
+        }
+
+        SnackbarHost(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+            hostState = snackbarHostState,
+
+            )
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
         )
     }
 }
@@ -203,6 +233,8 @@ fun SavedRecordingsScreenPreview() {
         onUpload = {},
         onDelete = {},
         onTogglePlayback = {},
-        onMoreOptions = {}
+        onMoreOptions = {},
+        uploadStatus = null,
+        onResetUploadStatus = {}
     )
 }

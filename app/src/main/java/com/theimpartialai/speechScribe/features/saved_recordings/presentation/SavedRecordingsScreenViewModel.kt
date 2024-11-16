@@ -1,13 +1,12 @@
 package com.theimpartialai.speechScribe.features.saved_recordings.presentation
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theimpartialai.speechScribe.features.cloud.S3UploadManager
-import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.AudioRecording
-import com.theimpartialai.speechScribe.features.saved_recordings.data.repository.AudioPlayerImpl
 import com.theimpartialai.speechScribe.features.recording.data.repository.AudioRecordingImpl
+import com.theimpartialai.speechScribe.features.saved_recordings.data.repository.AudioPlayerImpl
+import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.AudioRecording
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -20,6 +19,9 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
     private val audioPlayer = AudioPlayerImpl(application)
     private val _recordings = MutableStateFlow<List<AudioRecording>>(emptyList())
     val recordings: StateFlow<List<AudioRecording>> get() = _recordings
+
+    private val _uploadStatus = MutableStateFlow<String?>(null)
+    val uploadStatus: StateFlow<String?> = _uploadStatus
 
     fun loadRecordings() {
         viewModelScope.launch {
@@ -40,7 +42,6 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
 
     fun togglePlayback(recording: AudioRecording) {
         viewModelScope.launch {
-            // Stop any other playing recordings
             val currentlyPlaying = _recordings.value.find { it.isPlaying }
 
             if (currentlyPlaying != null && currentlyPlaying != recording) {
@@ -85,6 +86,10 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
+    fun resetUploadStatus() {
+        _uploadStatus.value = null
+    }
+
     private fun updateRecordingState(updatedRecording: AudioRecording) {
         val updatedList = _recordings.value.map {
             if (it.fileName == updatedRecording.fileName) updatedRecording else it
@@ -102,12 +107,19 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
             try {
                 val file = File(recording.filePath)
                 if (file.exists()) {
-                    s3UploadManager.uploadFileToS3(file)
+                    s3UploadManager.uploadFileToS3(file,
+                        onSuccess = {
+                            _uploadStatus.value = "File uploaded successfully"
+                        },
+                        onError = { error ->
+                            _uploadStatus.value = "Upload failed: ${error.message}"
+                        }
+                    )
                 } else {
-                    Log.e("ViewModel", "File does not exist: ${recording.filePath}")
+                    _uploadStatus.value = "File does not exist: ${recording.filePath}"
                 }
             } catch (e: Exception) {
-                Log.e("ViewModel", "Error uploading file", e)
+                _uploadStatus.value = "Error uploading file: ${e.message}"
             }
         }
     }

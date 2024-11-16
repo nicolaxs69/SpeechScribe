@@ -143,9 +143,12 @@ class S3UploadManager(
      * @param bucketName Target S3 bucket
      * @return TransferObserver to monitor upload
      */
-    fun uploadFileToS3(file: File) {
+    fun uploadFileToS3(
+        file: File,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
         authenticatedUser {
-
             val uploadObserver = transferUtility.upload(
                 BuildConfig.AWS_BUCKET_NAME,
                 file.name,
@@ -156,11 +159,11 @@ class S3UploadManager(
                 override fun onStateChanged(id: Int, state: TransferState?) {
                     when (state) {
                         TransferState.COMPLETED -> {
-                            Log.d(TAG, "Upload completed.")
+                            onSuccess()
                         }
 
                         TransferState.FAILED -> {
-                            Log.e(TAG, "Upload failed.")
+                            onError(Exception("Upload failed"))
                         }
 
                         else -> {}
@@ -175,6 +178,7 @@ class S3UploadManager(
 
                 override fun onError(id: Int, ex: Exception?) {
                     Log.e(TAG, "Error during upload: ", ex)
+                    onError(ex ?: Exception("Unknown error during upload"))
                 }
             })
         }

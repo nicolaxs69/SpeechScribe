@@ -23,10 +23,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.theimpartialai.speechScribe.core.components.navigation.BottomNavigationBar
 import com.theimpartialai.speechScribe.core.components.navigation.NavigationGraph
-import com.theimpartialai.speechScribe.features.recording.presentation.RecordingScreenViewModel
-import com.theimpartialai.speechScribe.features.saved_recordings.presentation.SavedRecordingsViewModel
 import com.theimpartialai.speechScribe.core.ui.theme.DarkBlue
 import com.theimpartialai.speechScribe.core.ui.theme.SpeechScribeTheme
+import com.theimpartialai.speechScribe.features.recording.presentation.RecordingScreenViewModel
+import com.theimpartialai.speechScribe.features.saved_recordings.presentation.SavedRecordingsViewModel
 
 class OpusEncoderActivity : AppCompatActivity() {
     private val voiceRecorderViewModel: RecordingScreenViewModel by viewModels()

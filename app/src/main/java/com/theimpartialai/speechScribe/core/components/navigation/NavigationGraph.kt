@@ -29,6 +29,7 @@ fun NavigationGraph(
             onBottomBarVisibilityChanged(true)
 
             val recordings by savedRecordingsViewModel.recordings.collectAsState()
+            val uploadStatus by savedRecordingsViewModel.uploadStatus.collectAsState()
 
             LaunchedEffect(Unit) {
                 savedRecordingsViewModel.loadRecordings()
@@ -41,7 +42,9 @@ fun NavigationGraph(
                 onTogglePlayback = { recording ->
                     savedRecordingsViewModel.togglePlayback(recording)
                 },
-                onMoreOptions = {}
+                onMoreOptions = {},
+                uploadStatus = uploadStatus,
+                onResetUploadStatus = { savedRecordingsViewModel.resetUploadStatus() }
             )
         }
 
