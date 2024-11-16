@@ -37,6 +37,7 @@ fun NavigationGraph(
             SavedRecordingsScreen(
                 recordings = recordings,
                 onDelete = { savedRecordingsViewModel.deleteRecording(it) },
+                onUpload = { savedRecordingsViewModel.uploadRecording(it) },
                 onTogglePlayback = { recording ->
                     savedRecordingsViewModel.togglePlayback(recording)
                 },

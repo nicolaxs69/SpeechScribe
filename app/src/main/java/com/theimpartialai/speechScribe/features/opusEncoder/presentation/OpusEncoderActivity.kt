@@ -82,7 +82,7 @@ class OpusEncoderActivity : AppCompatActivity() {
     }
 
     private fun startRecording() {
-        voiceRecorderViewModel.startRecording(this)
+        voiceRecorderViewModel.startRecording()
     }
 
     private fun checkAndRequestPermissions() {

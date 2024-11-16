@@ -35,10 +35,12 @@ import androidx.compose.ui.unit.dp
 import com.theimpartialai.speechScribe.R
 import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.AudioRecording
 
+
 @Composable
 fun SavedRecordingsScreen(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
+    onUpload: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording) -> Unit,
     onMoreOptions: (AudioRecording) -> Unit
 ) {
@@ -50,6 +52,7 @@ fun SavedRecordingsScreen(
     ) {
         RecordingList(
             recordings = recordings,
+            onUpload = onUpload,
             onDelete = onDelete,
             onTogglePlayback = onTogglePlayback,
             onMoreOptions = onMoreOptions
@@ -61,6 +64,7 @@ fun SavedRecordingsScreen(
 fun RecordingList(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
+    onUpload: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording) -> Unit,
     onMoreOptions: (AudioRecording) -> Unit
 ) {
@@ -71,6 +75,7 @@ fun RecordingList(
         items(recordings) { recording ->
             RecordingItem(
                 recording = recording,
+                onUpload = { onUpload(recording) },
                 onDelete = { onDelete(recording) },
                 onTogglePlayback = { onTogglePlayback(recording) },
                 onMoreOptions = { onMoreOptions(recording) }
@@ -83,6 +88,7 @@ fun RecordingList(
 fun RecordingItem(
     recording: AudioRecording,
     onDelete: () -> Unit,
+    onUpload: () -> Unit,
     onTogglePlayback: () -> Unit,
     onMoreOptions: () -> Unit
 ) {
@@ -169,6 +175,13 @@ fun RecordingItem(
                     showMenu.value = false
                 }
             )
+            DropdownMenuItem(
+                text = { Text("Upload to server") },
+                onClick = {
+                    onUpload()
+                    showMenu.value = false
+                }
+            )
         }
     }
     Spacer(modifier = Modifier.height(8.dp))
@@ -187,6 +200,7 @@ fun SavedRecordingsScreenPreview() {
                 timeStamp = System.currentTimeMillis()
             )
         },
+        onUpload = {},
         onDelete = {},
         onTogglePlayback = {},
         onMoreOptions = {}

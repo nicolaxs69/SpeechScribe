@@ -40,7 +40,7 @@ import com.theimpartialai.speechScribe.R
 
 @Composable
 fun RecordingScreen(
-    uiState: VoiceRecorderUiState,
+    uiState: RecordingScreenUiState,
     amplitudes: List<Int>,
     onStartRecording: () -> Unit,
     onResumeRecording: () -> Unit,
@@ -99,7 +99,7 @@ fun RecordingScreen(
 @Composable
 private fun RecordingButtons(
     modifier: Modifier,
-    uiState: VoiceRecorderUiState,
+    uiState: RecordingScreenUiState,
     onPauseRecording: () -> Unit,
     onResumeRecording: () -> Unit,
     onStartRecording: () -> Unit,
@@ -208,7 +208,7 @@ private fun RecordingButtons(
 @Composable
 fun RecordingScreenPreview() {
     RecordingScreen(
-        uiState = VoiceRecorderUiState(),
+        uiState = RecordingScreenUiState(),
         amplitudes = listOf(1, 2, 3, 4, 5),
         onStartRecording = {},
         onPauseRecording = {},
