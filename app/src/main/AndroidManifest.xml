@@ -20,7 +20,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SpeechScribe">
         <activity
-            android:name=".ui.opusEncoder.OpusEncoderActivity"
+            android:name=".features.opusEncoder.presentation.OpusEncoderActivity"
             android:exported="true"
             android:theme="@style/Theme.SpeechScribe.AppCompat">
             <intent-filter>
@@ -31,7 +31,7 @@
         </activity>
 
         <activity
-            android:name=".ui.main.MainActivity"
+            android:name=".features.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.SpeechScribe" />
     </application>
