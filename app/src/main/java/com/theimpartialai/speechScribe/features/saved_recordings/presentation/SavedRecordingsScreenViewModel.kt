@@ -7,12 +7,16 @@ import com.theimpartialai.speechScribe.features.cloud.S3UploadManager
 import com.theimpartialai.speechScribe.features.recording.data.repository.AudioRecordingImpl
 import com.theimpartialai.speechScribe.features.saved_recordings.data.repository.AudioPlayerImpl
 import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.AudioRecording
+import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.UploadState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
-class SavedRecordingsViewModel(application: Application) : AndroidViewModel(application) {
+class SavedRecordingsScreenViewModel(application: Application) : AndroidViewModel(application) {
     private val s3UploadManager = S3UploadManager(application)
 
     private val audioRepository = AudioRecordingImpl(application)
@@ -20,8 +24,8 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
     private val _recordings = MutableStateFlow<List<AudioRecording>>(emptyList())
     val recordings: StateFlow<List<AudioRecording>> get() = _recordings
 
-    private val _uploadStatus = MutableStateFlow<String?>(null)
-    val uploadStatus: StateFlow<String?> = _uploadStatus
+    private val _uploadState = MutableStateFlow<UploadState>(UploadState.Idle)
+    val uploadState = _uploadState.asStateFlow()
 
     fun loadRecordings() {
         viewModelScope.launch {
@@ -87,12 +91,12 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun resetUploadStatus() {
-        _uploadStatus.value = null
+        _uploadState.value = UploadState.Idle
     }
 
     private fun updateRecordingState(updatedRecording: AudioRecording) {
-        val updatedList = _recordings.value.map {
-            if (it.fileName == updatedRecording.fileName) updatedRecording else it
+        val updatedList = _recordings.value.map { originalRecording ->
+            if (originalRecording.fileName == updatedRecording.fileName) updatedRecording else originalRecording
         }
         _recordings.value = updatedList
     }
@@ -105,21 +109,40 @@ class SavedRecordingsViewModel(application: Application) : AndroidViewModel(appl
     fun uploadRecording(recording: AudioRecording) {
         viewModelScope.launch {
             try {
-                val file = File(recording.filePath)
-                if (file.exists()) {
-                    s3UploadManager.uploadFileToS3(file,
+                _uploadState.value = UploadState.Loading
+                updateRecordingState(recording.copy(isUploading = true))
+
+                withContext(Dispatchers.IO) {
+                    val file = File(recording.filePath)
+                    if (!file.exists()) {
+                        throw Exception("File does not exist: ${recording.filePath}")
+                    }
+
+                    s3UploadManager.uploadFileToS3(
+                        file,
                         onSuccess = {
-                            _uploadStatus.value = "File uploaded successfully"
+                            viewModelScope.launch {
+                                updateRecordingState(
+                                    recording.copy(
+                                        isUploading = false,
+                                    )
+                                )
+                                _uploadState.value =
+                                    UploadState.Success("File uploaded successfully")
+                            }
                         },
                         onError = { error ->
-                            _uploadStatus.value = "Upload failed: ${error.message}"
-                        }
+                            viewModelScope.launch {
+                                updateRecordingState(recording.copy(isUploading = false))
+                                _uploadState.value =
+                                    UploadState.Error(error.message ?: "Unknown error occurred")
+                            }
+                        },
                     )
-                } else {
-                    _uploadStatus.value = "File does not exist: ${recording.filePath}"
                 }
             } catch (e: Exception) {
-                _uploadStatus.value = "Error uploading file: ${e.message}"
+                updateRecordingState(recording.copy(isUploading = false))
+                _uploadState.value = UploadState.Error("Error uploading file: ${e.message}")
             }
         }
     }

@@ -146,7 +146,7 @@ class S3UploadManager(
     fun uploadFileToS3(
         file: File,
         onSuccess: () -> Unit,
-        onError: (Exception) -> Unit
+        onError: (Exception) -> Unit,
     ) {
         authenticatedUser {
             val uploadObserver = transferUtility.upload(

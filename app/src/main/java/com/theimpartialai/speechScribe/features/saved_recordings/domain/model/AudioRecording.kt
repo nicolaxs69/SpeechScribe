@@ -10,7 +10,8 @@ data class AudioRecording(
     val timeStamp: Long,
     val isPlaying: Boolean = false,
     val isPaused: Boolean = false,
-    val playbackPosition: Long = 0
+    val playbackPosition: Long = 0,
+    val isUploading: Boolean = false,
 ) {
     val formattedDuration: String
         get() {

@@ -37,23 +37,33 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.theimpartialai.speechScribe.R
 import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.AudioRecording
+import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.UploadState
+import com.theimpartialai.speechScribe.features.saved_recordings.presentation.components.UploadProgressIndicator
 
 @Composable
 fun SavedRecordingsScreen(
     recordings: List<AudioRecording>,
+    uploadState: UploadState,
     onDelete: (AudioRecording) -> Unit,
     onUpload: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording) -> Unit,
-    onMoreOptions: (AudioRecording) -> Unit,
-    uploadStatus: String?,
-    onResetUploadStatus: () -> Unit
+    onResetUploadState: () -> Unit
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackBarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uploadStatus) {
-        if (uploadStatus != null) {
-            snackbarHostState.showSnackbar(message = uploadStatus)
-            onResetUploadStatus()
+    LaunchedEffect(uploadState) {
+        when (uploadState) {
+            is UploadState.Success -> {
+                snackBarHostState.showSnackbar(message = uploadState.message)
+                onResetUploadState()
+            }
+
+            is UploadState.Error -> {
+                snackBarHostState.showSnackbar(message = uploadState.message)
+                onResetUploadState()
+            }
+
+            else -> {}
         }
     }
 
@@ -69,20 +79,11 @@ fun SavedRecordingsScreen(
                 onUpload = onUpload,
                 onDelete = onDelete,
                 onTogglePlayback = onTogglePlayback,
-                onMoreOptions = onMoreOptions
             )
         }
 
         SnackbarHost(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
-            hostState = snackbarHostState,
-
-            )
-
-        SnackbarHost(
-            hostState = snackbarHostState,
+            hostState = snackBarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(16.dp)
@@ -96,7 +97,6 @@ fun RecordingList(
     onDelete: (AudioRecording) -> Unit,
     onUpload: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording) -> Unit,
-    onMoreOptions: (AudioRecording) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -108,7 +108,6 @@ fun RecordingList(
                 onUpload = { onUpload(recording) },
                 onDelete = { onDelete(recording) },
                 onTogglePlayback = { onTogglePlayback(recording) },
-                onMoreOptions = { onMoreOptions(recording) }
             )
         }
     }
@@ -120,7 +119,6 @@ fun RecordingItem(
     onDelete: () -> Unit,
     onUpload: () -> Unit,
     onTogglePlayback: () -> Unit,
-    onMoreOptions: () -> Unit
 ) {
     val showMenu = remember { mutableStateOf(false) }
 
@@ -186,36 +184,43 @@ fun RecordingItem(
                 )
             }
         }
-        Icon(
-            modifier = Modifier
-                .size(35.dp)
-                .clickable { showMenu.value = true },
-            imageVector = Icons.Default.MoreVert,
-            tint = Color.LightGray,
-            contentDescription = "More options"
-        )
-        DropdownMenu(
-            expanded = showMenu.value,
-            onDismissRequest = { showMenu.value = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Delete") },
-                onClick = {
-                    onDelete()
-                    showMenu.value = false
-                }
+
+        if (recording.isUploading) {
+            UploadProgressIndicator()
+        } else {
+            Icon(
+                modifier = Modifier
+                    .size(35.dp)
+                    .clickable { showMenu.value = true },
+                imageVector = Icons.Default.MoreVert,
+                tint = Color.LightGray,
+                contentDescription = "More options"
             )
-            DropdownMenuItem(
-                text = { Text("Upload to server") },
-                onClick = {
-                    onUpload()
-                    showMenu.value = false
-                }
-            )
+
+            DropdownMenu(
+                expanded = showMenu.value,
+                onDismissRequest = { showMenu.value = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Delete") },
+                    onClick = {
+                        onDelete()
+                        showMenu.value = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Upload to server") },
+                    onClick = {
+                        onUpload()
+                        showMenu.value = false
+                    }
+                )
+            }
         }
     }
     Spacer(modifier = Modifier.height(8.dp))
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -230,11 +235,10 @@ fun SavedRecordingsScreenPreview() {
                 timeStamp = System.currentTimeMillis()
             )
         },
+        uploadState = UploadState.Idle,
         onUpload = {},
         onDelete = {},
         onTogglePlayback = {},
-        onMoreOptions = {},
-        uploadStatus = null,
-        onResetUploadStatus = {}
+        onResetUploadState = {}
     )
 }
