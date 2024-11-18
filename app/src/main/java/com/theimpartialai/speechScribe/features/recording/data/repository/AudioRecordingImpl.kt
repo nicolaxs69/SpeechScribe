@@ -134,7 +134,6 @@ class AudioRecordingImpl(context: Context) : AudioRecordingInterface {
                 fileSize = file.length().toDouble(),
                 duration = getAudioDuration(file),
                 timeStamp = file.lastModified()
-
             )
         }
     }

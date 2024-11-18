@@ -47,7 +47,7 @@ class RecordingScreenViewModel(application: Application) : AndroidViewModel(appl
     +      * @param context The context used to initialize audio controllers and file operations.
     +      */
 
-    fun startRecording(context: Context) {
+    fun startRecording() {
         recordingStartTime = System.currentTimeMillis()
         viewModelScope.launch {
             audioRepository.startRecording(this@RecordingScreenViewModel)

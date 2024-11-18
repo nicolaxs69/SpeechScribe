@@ -20,8 +20,11 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,25 +37,56 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.theimpartialai.speechScribe.R
 import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.AudioRecording
+import com.theimpartialai.speechScribe.features.saved_recordings.domain.model.UploadState
+import com.theimpartialai.speechScribe.features.saved_recordings.presentation.components.UploadProgressIndicator
 
 @Composable
 fun SavedRecordingsScreen(
     recordings: List<AudioRecording>,
+    uploadState: UploadState,
     onDelete: (AudioRecording) -> Unit,
+    onUpload: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording) -> Unit,
-    onMoreOptions: (AudioRecording) -> Unit
+    onResetUploadState: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .padding(top = 20.dp)
-            .fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        RecordingList(
-            recordings = recordings,
-            onDelete = onDelete,
-            onTogglePlayback = onTogglePlayback,
-            onMoreOptions = onMoreOptions
+    val snackBarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uploadState) {
+        when (uploadState) {
+            is UploadState.Success -> {
+                snackBarHostState.showSnackbar(message = uploadState.message)
+                onResetUploadState()
+            }
+
+            is UploadState.Error -> {
+                snackBarHostState.showSnackbar(message = uploadState.message)
+                onResetUploadState()
+            }
+
+            else -> {}
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .padding(top = 20.dp)
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            RecordingList(
+                recordings = recordings,
+                onUpload = onUpload,
+                onDelete = onDelete,
+                onTogglePlayback = onTogglePlayback,
+            )
+        }
+
+        SnackbarHost(
+            hostState = snackBarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
         )
     }
 }
@@ -61,8 +95,8 @@ fun SavedRecordingsScreen(
 fun RecordingList(
     recordings: List<AudioRecording>,
     onDelete: (AudioRecording) -> Unit,
+    onUpload: (AudioRecording) -> Unit,
     onTogglePlayback: (AudioRecording) -> Unit,
-    onMoreOptions: (AudioRecording) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -71,9 +105,9 @@ fun RecordingList(
         items(recordings) { recording ->
             RecordingItem(
                 recording = recording,
+                onUpload = { onUpload(recording) },
                 onDelete = { onDelete(recording) },
                 onTogglePlayback = { onTogglePlayback(recording) },
-                onMoreOptions = { onMoreOptions(recording) }
             )
         }
     }
@@ -83,8 +117,8 @@ fun RecordingList(
 fun RecordingItem(
     recording: AudioRecording,
     onDelete: () -> Unit,
+    onUpload: () -> Unit,
     onTogglePlayback: () -> Unit,
-    onMoreOptions: () -> Unit
 ) {
     val showMenu = remember { mutableStateOf(false) }
 
@@ -150,29 +184,43 @@ fun RecordingItem(
                 )
             }
         }
-        Icon(
-            modifier = Modifier
-                .size(35.dp)
-                .clickable { showMenu.value = true },
-            imageVector = Icons.Default.MoreVert,
-            tint = Color.LightGray,
-            contentDescription = "More options"
-        )
-        DropdownMenu(
-            expanded = showMenu.value,
-            onDismissRequest = { showMenu.value = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("Delete") },
-                onClick = {
-                    onDelete()
-                    showMenu.value = false
-                }
+
+        if (recording.isUploading) {
+            UploadProgressIndicator()
+        } else {
+            Icon(
+                modifier = Modifier
+                    .size(35.dp)
+                    .clickable { showMenu.value = true },
+                imageVector = Icons.Default.MoreVert,
+                tint = Color.LightGray,
+                contentDescription = "More options"
             )
+
+            DropdownMenu(
+                expanded = showMenu.value,
+                onDismissRequest = { showMenu.value = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Delete") },
+                    onClick = {
+                        onDelete()
+                        showMenu.value = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Upload to server") },
+                    onClick = {
+                        onUpload()
+                        showMenu.value = false
+                    }
+                )
+            }
         }
     }
     Spacer(modifier = Modifier.height(8.dp))
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -187,8 +235,10 @@ fun SavedRecordingsScreenPreview() {
                 timeStamp = System.currentTimeMillis()
             )
         },
+        uploadState = UploadState.Idle,
+        onUpload = {},
         onDelete = {},
         onTogglePlayback = {},
-        onMoreOptions = {}
+        onResetUploadState = {}
     )
 }

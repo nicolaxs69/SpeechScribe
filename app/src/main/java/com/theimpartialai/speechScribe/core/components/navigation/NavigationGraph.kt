@@ -10,15 +10,15 @@ import androidx.navigation.compose.composable
 import com.theimpartialai.speechScribe.features.recording.presentation.RecordingScreen
 import com.theimpartialai.speechScribe.features.recording.presentation.RecordingScreenViewModel
 import com.theimpartialai.speechScribe.features.saved_recordings.presentation.SavedRecordingsScreen
-import com.theimpartialai.speechScribe.features.saved_recordings.presentation.SavedRecordingsViewModel
+import com.theimpartialai.speechScribe.features.saved_recordings.presentation.SavedRecordingsScreenViewModel
 
 @Composable
 fun NavigationGraph(
     navController: NavHostController,
-    onBottomBarVisibilityChanged: (Boolean) -> Unit,
     recordingScreenViewModel: RecordingScreenViewModel,
-    savedRecordingsViewModel: SavedRecordingsViewModel,
-    checkAndRequestPermissions: () -> Unit
+    savedRecordingsViewModel: SavedRecordingsScreenViewModel,
+    checkAndRequestPermissions: () -> Unit,
+    onBottomBarVisibilityChanged: (Boolean) -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -29,6 +29,7 @@ fun NavigationGraph(
             onBottomBarVisibilityChanged(true)
 
             val recordings by savedRecordingsViewModel.recordings.collectAsState()
+            val uploadState by savedRecordingsViewModel.uploadState.collectAsState()
 
             LaunchedEffect(Unit) {
                 savedRecordingsViewModel.loadRecordings()
@@ -36,11 +37,17 @@ fun NavigationGraph(
 
             SavedRecordingsScreen(
                 recordings = recordings,
-                onDelete = { savedRecordingsViewModel.deleteRecording(it) },
+                uploadState = uploadState,
+                onDelete = { recording ->
+                    savedRecordingsViewModel.deleteRecording(recording)
+                },
+                onUpload = { recording ->
+                    savedRecordingsViewModel.uploadRecording(recording)
+                },
                 onTogglePlayback = { recording ->
                     savedRecordingsViewModel.togglePlayback(recording)
                 },
-                onMoreOptions = {}
+                onResetUploadState = { savedRecordingsViewModel.resetUploadStatus() }
             )
         }
 
